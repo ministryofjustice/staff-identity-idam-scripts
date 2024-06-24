@@ -1,0 +1,17 @@
+# Staff Identity IDAM Scripts
+
+This repo holds PowerShell scripts that are used to manage areas of Entra ID. These scripts should be kept up to date in this locations as the source of truth maintaining an audit trail of changes and detailed explanations of what each one does.
+
+## Structure
+
+Each script should sit within its own folder and include
+
+- README.md
+- Associated PowerShell files
+
+The table below should be kept up to date with any additions or removals of scripts.
+
+
+| Name | Description | Link |
+|------|-------------|------|
+| Disable M365 Group Creation Assign Security Group | Disables the default setting for allowing all users to be able to create Microsoft 365 Groups. | [Link](./DisableM365GroupCreationAssignSecurityGroup/DisableM365GroupCreationAssignSecurityGroup.ps1) |
