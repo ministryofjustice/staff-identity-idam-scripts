@@ -15,4 +15,4 @@ The table below should be kept up to date with any additions or removals of scri
 | Name | Description | Link |
 |------|-------------|------|
 | Disable M365 Group Creation Assign Security Group | Disables the default setting for allowing all users to be able to create Microsoft 365 Groups. | [Link](./DisableM365GroupCreationAssignSecurityGroup/DisableM365GroupCreationAssignSecurityGroup.ps1) |
-| Per User MFA | Allows you to enable and check for Per User MFA on a User. | [Link](./PerUserMfa) |
+| Per User MFA | Allows you to manage Per User MFA for users in the tenent. | [Link](./PerUserMfa) |
