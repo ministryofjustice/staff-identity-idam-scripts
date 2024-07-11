@@ -6,7 +6,13 @@ Jira Ticket: [IDAM-655](https://dsdmoj.atlassian.net/browse/IDAM-655)
 
 The Per User MFA process will be deprecated soon by Microsoft. Instead we should be moving to using Conditional Access Policies and removing all per user MFA configurations including the use of this script.
 
-This script is a short term fix to still allow us to enable per user MFA for specific sets of users. [For more information see this Confluence article](https://dsdmoj.atlassian.net/wiki/spaces/EUCS/pages/4892033119/Legacy+MFA+Requests+Prison+Staff).
+The scripts within this directory allow you to do the following.
+
+| Name | Description | Link |
+|------|-------------|------|
+| Get all users in tenent with MFA State. | Queries every user in the tenent fetching this id, name and mfa status. Output is saved to a JSON file for later consumption. | [Link](./PerUserMfaGetAll.ps1) |
+| Disable Per User MFA for all enabled users. | Read from the output of PerUserMfaGetAll JSON file, finds enabled users and disables each. | [Link](./PerUserMfaDisable.ps1) |
+| Gets single user MFA State. | Queries an individual user by user id for Per User MFA status. | [Link](./PerUserMfaGet) |
 
 ## Prerequisites
 
@@ -14,10 +20,8 @@ This script is a short term fix to still allow us to enable per user MFA for spe
     - `Global Reader`
     - `User Administrator`
     - `Application Administrator`
-    - `Authentication Policy Administrator`
 - PowerShell 7
-- Administrator rights to run PowerShell
-- 
+- Administrator rights to run PowerShell 
 
 ## Executing Script
 
@@ -26,13 +30,11 @@ This script is a short term fix to still allow us to enable per user MFA for spe
     - `Global Reader`
     - `User Administrator`
     - `Application Administrator`
-    - `Authentication Policy Administrator`
 * Open PowerShell 7 and run the following commands
     * If this is your first run `Install-Module Microsoft.Graph.Beta`
     * If this is already installed, run `Update-Module Microsoft.Graph.Beta`
 * `cd` to where you downloaded the local script
-* Open the script and change in both the variable `$userId` to be the UUID of the user in the tenant you wish to update
-* Run one of the following scripts `.\PerUserMfaGet.ps1` (for a dry run to check the current MFA status) or `.\PerUserMfaEnable.ps1` (to update the MFA status to enable it)
+* Run the required script
 * At the prompt, sign in with your Entra ID Administrator Account
 
 The script should now run successfully.

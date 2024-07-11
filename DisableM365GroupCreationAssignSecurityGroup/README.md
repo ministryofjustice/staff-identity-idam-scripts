@@ -19,7 +19,6 @@ This script does two things.
     - `Application Administrator`
 - PowerShell 7
 - Administrator rights to run PowerShell
-- 
 
 ## Executing Script
 
