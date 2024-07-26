@@ -37,9 +37,9 @@ if ($UserUPN -ne $ConfirmCorrectUser) {
 # Step 1
 Write-Host "`nStep 1 - Disable users account in Entra." -ForegroundColor Blue
 
-$ConfirmStep1 = Read-Host -Prompt "Enter Y to continue"
+$ConfirmStep = Read-Host -Prompt "Enter Y to continue"
 
-if ($ConfirmStep1.ToLower() -ne "y") {
+if ($ConfirmStep.ToLower() -ne "y") {
     Write-Error "Process cancelled at Step 1."
     return
 }
@@ -51,9 +51,9 @@ Write-Host "Step 1 Complete. $UserUPN disabled." -ForegroundColor Green
 # Step 2
 Write-Host "`nStep 2 - Revoke the user's Microsoft Entra ID refresh tokens." -ForegroundColor Blue
 
-$ConfirmStep1 = Read-Host -Prompt "Enter Y to continue"
+$ConfirmStep = Read-Host -Prompt "Enter Y to continue"
 
-if ($ConfirmStep1.ToLower() -ne "y") {
+if ($ConfirmStep.ToLower() -ne "y") {
     Write-Error "Process cancelled at Step 2."
     return
 }
@@ -65,9 +65,9 @@ Write-Host "Step 2 Complete. $UserUPN refresh tokens revoked." -ForegroundColor 
 # Step 3
 Write-Host "`nStep 3 - Disable the user's devices." -ForegroundColor Blue
 
-$ConfirmStep1 = Read-Host -Prompt "Enter Y to continue"
+$ConfirmStep = Read-Host -Prompt "Enter Y to continue"
 
-if ($ConfirmStep1.ToLower() -ne "y") {
+if ($ConfirmStep.ToLower() -ne "y") {
     Write-Error "Process cancelled at Step 3."
     return
 }
