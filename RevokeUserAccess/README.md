@@ -1,7 +1,7 @@
 # Revoke user access in Microsoft Entra ID
 
 Jira Ticket: [IDAM-861](https://dsdmoj.atlassian.net/browse/IDAM-861)
-Confluence Documentation: [TBC](#)
+Confluence Documentation: [IR: Revoke user access in Microsoft Entra ID](https://dsdmoj.atlassian.net/wiki/spaces/EUCS/pages/5034279003/IR+Revoke+user+access+in+Microsoft+Entra+ID)
 
 ## Description
 
