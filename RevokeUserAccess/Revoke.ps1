@@ -44,7 +44,7 @@ if ($ConfirmStep.ToLower() -ne "y") {
     return
 }
 
-# Update-MgUser -UserId $user.Id -AccountEnabled:$false
+Update-MgUser -UserId $user.Id -AccountEnabled:$false
 
 Write-Host "Step 1 Complete. $UserUPN disabled." -ForegroundColor Green
 
@@ -58,7 +58,7 @@ if ($ConfirmStep.ToLower() -ne "y") {
     return
 }
 
-# Revoke-MgUserSignInSession -UserId $user.Id
+Revoke-MgUserSignInSession -UserId $user.Id
 
 Write-Host "Step 2 Complete. $UserUPN refresh tokens revoked." -ForegroundColor Green
 
@@ -72,8 +72,8 @@ if ($ConfirmStep.ToLower() -ne "y") {
     return
 }
 
-# $Device = Get-MgUserRegisteredDevice -UserId $User.Id 
-# Update-MgDevice -DeviceId $Device.Id -AccountEnabled:$false
+$Device = Get-MgUserRegisteredDevice -UserId $User.Id 
+Update-MgDevice -DeviceId $Device.Id -AccountEnabled:$false
 
 Write-Host "Step 3 Complete. $UserUPN devices disabled." -ForegroundColor Green
 
