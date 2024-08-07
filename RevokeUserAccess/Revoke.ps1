@@ -64,7 +64,7 @@ function Install-Required-Modules() {
 function Connect-To-MgGraph() {
     Connect-MgGraph -Scopes $mgGraphScopes -NoWelcome
 
-    if (-not (get-mgcontext)) {
+    if (-not (Get-MgContext)) {
         write-error "No graph connection detected. Cannot continue"
         Stop-Transcript
         Throw
@@ -80,7 +80,7 @@ function Get-User-Object() {
         Write-LogError "User $UserUPN not found. Script cannot continue"
         Stop-Transcript
         Disconnect-MgGraph
-        throw
+        Throw
     }
 
     Write-LogInfo "Sucessfully got $UserUPN user details"
@@ -93,22 +93,49 @@ function Revoke-User-Account() {
     $userDetails = Get-User-Object
 
     Write-LogInfo "Disabling account for $($userDetails.Id)"
-    #Update-MgUser -UserId $userDetails.Id -AccountEnabled:$false
+    Try {
+        #Update-MgUser -UserId $userDetails.Id -AccountEnabled:$false
+    }
+    catch {
+        Write-LogError "Unable to disable user account $($userDetails.DisplayName) - $($userDetails.Id). Script cannot continue."
+        Stop-Transcript
+        Disconnect-MgGraph
+        Throw
+    }
     Write-LogInfo "User successfully disabled"
     
     Write-LogInfo "Revoking user sign in sessions for $($userDetails.Id)"
-    #Revoke-MgUserSignInSession -UserId $userDetails.Id
-    Write-LogInfo "User Sign In Sessions successfully revoked"
+    Try {
+        #Revoke-MgUserSignInSession -UserId $userDetails.Id
+        Write-LogInfo "User Sign In Sessions successfully revoked"
+    }
+    catch {
+        Write-LogError "Unable to revoke user sessions for $($userDetails.DisplayName) - $($userDetails.Id)."
+    }    
 
     Write-LogInfo "Disabling users devices."
-    $Devices = Get-MgUserRegisteredDevice -UserId $userDetails.Id
-    Write-LogInfo "Found $($Devices.Count) devices."
-    foreach ($Device in $Devices) {
-        Write-LogInfo "Disabling device $($Device.DisplayName) - $($Device.Id)"
-        #Update-MgDevice -DeviceId $Device.Id -AccountEnabled:$false
-        Write-LogInfo "Disabled device $($Device.DisplayName) - $($Device.Id) successfully"
+    $Devices = @()
+    Try {
+        $Devices = Get-MgUserRegisteredDevice -UserId $userDetails.Id
     }
-    Write-LogInfo "Users devices successfully revoked"
+    catch {
+        Write-LogError "Unable to fetch registered devices for $($userDetails.DisplayName) - $($userDetails.Id)."
+    }   
+    Write-LogInfo "Found $($Devices.Count) devices."
+    if ($Devices.Count -gt 0) {
+        foreach ($Device in $Devices) {
+            Write-LogInfo "Disabling device $($Device.DisplayName) - $($Device.Id)"
+            Try {
+                #Update-MgDevice -DeviceId $Device.Id -AccountEnabled:$false
+                Write-LogInfo "Disabled device $($Device.DisplayName) - $($Device.Id) successfully"}
+            catch {
+                Write-LogError "Unable to disable device  $($Device.DisplayName) - $($Device.Id)."
+            }   
+        }
+        Write-LogInfo "Users devices successfully revoked"
+    } else {
+        Write-LogWarn "No user devices available to be revoked."
+    }
 }
 
 # --- Start Script Execution
