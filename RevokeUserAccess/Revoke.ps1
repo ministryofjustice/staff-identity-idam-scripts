@@ -74,7 +74,7 @@ function Connect-To-MgGraph() {
 function Get-User-Object() {
     
     Write-LogInfo "Fetch $UserUPN details from Entra"
-    $user = Get-MgUser -Search UserPrincipalName:$UserUPN -ConsistencyLevel eventual
+    $user = Get-MgUser -Filter "UserPrincipalName eq '$($UserUPN)'"  -ConsistencyLevel eventual
 
     if ($user.Count -eq 0) {
         Write-LogError "User $UserUPN not found. Script cannot continue"
