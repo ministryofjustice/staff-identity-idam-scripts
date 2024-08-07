@@ -14,7 +14,12 @@
 #>
 [CmdletBinding(DefaultParameterSetName = 'Single')]
 param(
-    [Parameter(Mandatory = $true, ParameterSetName = 'Single')][string]$userUPN #User account to be given a particular role
+    [Parameter(Mandatory = $true, ParameterSetName = 'Single')][ValidateScript({
+        if ($_ -notmatch "(@)") {
+            throw "The UPN specified must be in a valid format."
+        }
+        return $true 
+    })][string]$userUPN #User account to be revoked
 )
 
 # Allows display of Write-Information output
