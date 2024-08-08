@@ -1,3 +1,4 @@
 PerUserMfa/*.json
 SP/*.json
 SP/*.csv
+*.log

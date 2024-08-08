@@ -1,81 +1,177 @@
-Connect-MgGraph -Scopes "User.ReadWrite.All" -NoWelcome
-Import-Module Microsoft.Graph.Beta.Applications
+<#
+    .SYNOPSIS
+    A script to disable a user's Entra account, revoke refresh tokens and disables user's device.
+    
+    .DESCRIPTION
+    Leverage Microsoft Graph API and PowerShell to disable a user's Entra account, revoke refresh tokens and disables user's device.
 
-Write-Host "Welcome to the Revoke user access in Microsoft Entra ID PowerShell script.`n" -ForegroundColor Green
-Write-Host "For more information on this process, consult the following Microsoft Knowledge Article: https://learn.microsoft.com/en-us/entra/identity/users/users-revoke-access#microsoft-entra-environment.`n" -ForegroundColor Green
-Write-Host "Warning: Running this script will disable a users account and device. Please ensure you understand the process fully before going any further.`n" -ForegroundColor Red
+    .PARAMETER userUPN
+    The User Principle Name of the identity to revoke
+    
+    .EXAMPLE
+    Revoke.ps1 -userUPN user1@domain.com
+    Disable a user's Entra account, revoke refresh tokens and disables user's device.
+#>
+[CmdletBinding(DefaultParameterSetName = 'Single')]
+param(
+    [Parameter(Mandatory = $true, ParameterSetName = 'Single')][ValidateScript({
+            if ($_ -notmatch "(@)") {
+                throw "The UPN specified must be in a valid format."
+            }
+            return $true
+        })][string]$userUPN #User account to be revoked
+)
 
-$UserUPN = Read-Host -Prompt "Enter users principle name to be revoked"
+# Allows display of Write-Information output
+$InformationPreference = 'Continue'
 
-if (!$UserUPN) {
-    Write-Error "UPN empty."
-    return
+# --- Start variables 
+$scriptname = "Revoke-User"
+$mgGraphScopes = "User.ReadWrite.All"
+$requiredModules = @("Microsoft.Graph")
+
+$infocount = 0
+$warncount = 0
+$errorcount = 0
+
+# --- Start Functions
+function Write-LogInfo($logentry) {
+    Write-Information "$(get-date -Format "yyyy-MM-dd HH:mm:ss K") - $($logentry)"
+    $script:infocount++
+}
+function Write-LogWarn($logentry) {
+    Write-Warning "$(get-date -Format "yyyy-MM-dd HH:mm:ss K") - $($logentry)"
+    $script:warncount++
 }
 
-$user = Get-MgBetaUser -Search UserPrincipalName:$UserUPN -ConsistencyLevel eventual | Format-List  ID, DisplayName, Mail, UserPrincipalName
-
-if ($user.Count -eq 0) {
-    Write-Error "User $UserUPN not found."
-    return
+function Write-LogError($logentry) {
+    Write-Error "$(get-date -Format "yyyy-MM-dd HH:mm:ss K") - $($logentry)"
+    $script:errorcount++
 }
 
-if ($user.Count -ne 5) {
-    Write-Error "Multiple users found for search: $UserUPN."
-    return
+function Install-Required-Modules() {
+    foreach ($requiredModule in $requiredModules) {
+        $module = Import-Module $requiredModule -PassThru -ErrorAction Ignore
+        if (-not $module) {
+            Write-LogInfo "$($requiredModule) module not found, Attempting to install"
+            Install-Module $requiredModule -Force 
+            $module = Import-Module $requiredModule -PassThru -ErrorAction Ignore
+            if ($module) {
+                Write-LogInfo "$($module.Name) module installed successfully"
+            }
+            else {
+                Write-LogError "Error Installing $($requiredModule) module. Script will continue"
+            }
+        }
+    }    
 }
 
-Write-Host "`n$UserUPN details" -ForegroundColor Blue
-$user
+function Connect-To-MgGraph() {
+    Connect-MgGraph -Scopes $mgGraphScopes -NoWelcome
 
-$ConfirmCorrectUser = Read-Host -Prompt "Are the above details correct? If so, please re-enter the users principle name to continue"
+    if (-not (Get-MgContext)) {
+        write-error "No graph connection detected. Cannot continue"
+        Stop-Transcript
+        Throw
+    }
 
-if ($UserUPN -ne $ConfirmCorrectUser) {
-    Write-Error "UPN values do not match. Process cancelled."
-    return
 }
 
-# Step 1
-Write-Host "`nStep 1 - Disable users account in Entra." -ForegroundColor Blue
+function Get-User-Object() {    
+    Write-LogInfo "Fetch $UserUPN details from Entra"
+    $user = Get-MgUser -Filter "UserPrincipalName eq '$($UserUPN)'"  -ConsistencyLevel eventual
 
-$ConfirmStep = Read-Host -Prompt "Enter Y to continue"
+    if ($user.Count -eq 0) {
+        Write-LogError "User $UserUPN not found. Script cannot continue"
+        Stop-Transcript
+        Disconnect-MgGraph
+        Throw
+    }
 
-if ($ConfirmStep.ToLower() -ne "y") {
-    Write-Error "Process cancelled at Step 1."
-    return
+    Write-LogInfo "Sucessfully got $UserUPN user details"
+    return $user
 }
 
-Update-MgUser -UserId $user.Id -AccountEnabled:$false
-
-Write-Host "Step 1 Complete. $UserUPN disabled." -ForegroundColor Green
-
-# Step 2
-Write-Host "`nStep 2 - Revoke the user's Microsoft Entra ID refresh tokens." -ForegroundColor Blue
-
-$ConfirmStep = Read-Host -Prompt "Enter Y to continue"
-
-if ($ConfirmStep.ToLower() -ne "y") {
-    Write-Error "Process cancelled at Step 2."
-    return
+function Revoke-User-Disable-Account($userDetails) {    
+    Write-LogInfo "Disabling account for $($userDetails.Id)"
+    Try {
+        Update-MgUser -UserId $userId -AccountEnabled:$false
+    }
+    catch {
+        Write-LogError "Unable to disable user account $($userDetails.DisplayName) - $($userDetails.Id). Script cannot continue."
+        Stop-Transcript
+        Disconnect-MgGraph
+        Throw
+    }
+    Write-LogInfo "User successfully disabled"
 }
 
-Revoke-MgUserSignInSession -UserId $user.Id
-
-Write-Host "Step 2 Complete. $UserUPN refresh tokens revoked." -ForegroundColor Green
-
-# Step 3
-Write-Host "`nStep 3 - Disable the user's devices." -ForegroundColor Blue
-
-$ConfirmStep = Read-Host -Prompt "Enter Y to continue"
-
-if ($ConfirmStep.ToLower() -ne "y") {
-    Write-Error "Process cancelled at Step 3."
-    return
+function Revoke-User-Sessions($userDetails) {
+    Write-LogInfo "Revoking user sign in sessions for $($userDetails.Id)"
+    Try {
+        Revoke-MgUserSignInSession -UserId $userId
+        Write-LogInfo "User Sign In Sessions successfully revoked"
+    }
+    catch {
+        Write-LogError "Unable to revoke user sessions for $($userDetails.DisplayName) - $($userDetails.Id)."
+    }    
 }
 
-$Device = Get-MgUserRegisteredDevice -UserId $User.Id 
-Update-MgDevice -DeviceId $Device.Id -AccountEnabled:$false
+function Revoke-User-Devices($userDetails) {
+    Write-LogInfo "Disabling users devices."
 
-Write-Host "Step 3 Complete. $UserUPN devices disabled." -ForegroundColor Green
+    $Devices = $null
+    Try {
+        Write-LogInfo "Get all users devices."
+        $Devices = Get-MgUserRegisteredDevice -UserId $userDetails.Id
+    }
+    catch {
+        Write-LogError "Unable to fetch registered devices for $($userDetails.DisplayName) - $($userDetails.Id)."
+    }   
+    Write-LogInfo "Found $($Devices.Count) devices."
+    if ($Devices.Count -gt 0) {
+        foreach ($Device in $Devices) {
+            Write-LogInfo "Disabling device $($Device.DisplayName) - $($Device.Id)"
+            Try {
+                Update-MgDevice -DeviceId $Device.Id -AccountEnabled:$false
+                Write-LogInfo "Disabled device $($Device.DisplayName) - $($Device.Id) successfully"
+            }
+            catch {
+                Write-LogError "Unable to disable device  $($Device.DisplayName) - $($Device.Id)."
+            }   
+        }
+        Write-LogInfo "Users devices successfully revoked"
+    }
+    else {
+        Write-LogWarn "No user devices available to be revoked."
+    }
+}
 
-# Process completed
-Write-Host "`nEntra User successfully disabled." -ForegroundColor Green
+# --- Start Script Execution
+Start-Transcript -Path "$($scriptname)_$(get-date -Format "yyyy-MM-dd_HHmmss").log" -Append
+Write-LogInfo "Starting execution of the $($scriptname) Script"
+
+Write-LogInfo "Validating that all required modules are installed (this can take some time)"
+Install-Required-Modules
+Write-LogInfo "Modules installed"
+
+# Connect to EntraID using interactive credentials
+Connect-To-MgGraph
+
+# Get user object from Entra
+$userDetails = Get-User-Object
+
+# Perform User Disablement
+Revoke-User-Disable-Account($userDetails)
+
+# Perform User Session Disablement
+Revoke-User-Sessions($userDetails)
+
+# Perform revocation
+Revoke-User-Devices($userDetails)
+
+if ($errorcount -gt 0) { Write-LogWarn "Script execution finished with $($errorcount) Errors and $($warncount) Warnings" }
+elseif ($warncount -gt 0) { Write-LogWarn "Script execution finished with $($errorcount) Errors and $($warncount) Warnings" }
+else { Write-LogInfo "Script execution finished with $($errorcount) Errors and $($warncount) Warnings" }
+
+Stop-Transcript
