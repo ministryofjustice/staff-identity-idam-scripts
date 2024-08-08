@@ -13,6 +13,7 @@ The script within this directory allow you to do the following.
 
 | Name | Description | Link |
 |------|-------------|------|
+| Reset user's AD Password. | Resets the users AD password twice. | [Link](./Reset-AD-Password.ps1) |
 | Revoke user access from Entra ID. | Disables Entra account, revokes refresh tokens and disables user's device. | [Link](./Revoke.ps1) |
 
 ## Prerequisites
@@ -23,6 +24,10 @@ The script within this directory allow you to do the following.
 - PowerShell 7
 - Administrator rights to run PowerShell
 
+### Reset-AD-Password
+
+To run this script you must ensure you have Remote Server Administration Tools (RSAT) package installed. To do so, follow the steps in this article https://learn.microsoft.com/en-gb/troubleshoot/windows-server/system-management-components/remote-server-administration-tools
+
 ## Executing Script
 
 * Download and save a copy of this script.
@@ -30,8 +35,6 @@ The script within this directory allow you to do the following.
     - `Global Reader`
     - `Application Administrator`
 * Open PowerShell 7 and run the following commands
-    * If this is your first run `Install-Module Microsoft.Graph.Beta`
-    * If this is already installed, run `Update-Module Microsoft.Graph.Beta`
 * `cd` to where you downloaded the local script
 * Run the required script
 * At the prompt, sign in with your Entra ID Administrator Account
