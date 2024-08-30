@@ -1,5 +1,5 @@
 #Connet to Microsoft Graph
-Connect-MgGraph -Scope "Policy.ReadWrite.AuthenticationMethod, User.Read.All"
+Connect-MgGraph -Scope "User.Read.All"
 
 #Get all users and select only required properties
 $allUsers = Get-MgUser -All | Select-Object UserPrincipalName, GivenName, Surname, Mail, OfficeLocation
