@@ -1,4 +1,5 @@
 PrisonIdentities/*.json
+PrisonIdentities/*.csv
 PerUserMfa/*.json
 SP/*.json
 SP/*.csv
