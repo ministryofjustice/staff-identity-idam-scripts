@@ -31,5 +31,5 @@ Foreach ($user in $allusers){
     }
 }
 
-$AllUsersPrisonIdentities | ConvertTo-Json -depth 100 | Out-File ".\PrisonIdentities.json"
+$AllUsersPrisonIdentities | ConvertTo-Json -depth 10 | Out-File ".\PrisonIdentities.json"
 $AllUsersPrisonIdentities | ConvertTo-Csv | Out-File ".\PrisonIdentities.csv" 
