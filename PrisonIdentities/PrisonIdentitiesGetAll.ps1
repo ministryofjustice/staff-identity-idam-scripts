@@ -1,8 +1,8 @@
 #Connet to Microsoft Graph
-Connect-MgGraph -Scope "User.Read.All"
+Connect-MgGraph -Scope "User.Read.All, Application.Read.All,  User.ReadWrite.All, Directory.Read.All, Application.ReadWrite.All, Policy.ReadWrite.AuthenticationMethod"
 
 #Get all users and select only required properties
-$allUsers = Get-MgUser -All | Select-Object UserPrincipalName, GivenName, Surname, Mail, OfficeLocation
+$allUsers = Get-MgUser -All -Property UserPrincipalName, GivenName, Surname, Mail, OfficeLocation, AccountEnabled | Select-Object UserPrincipalName, GivenName, Surname, Mail, OfficeLocation, AccountEnabled
 
 $InputArray = @(
     "HMP Altcourse",
