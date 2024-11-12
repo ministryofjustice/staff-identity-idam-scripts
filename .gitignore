@@ -3,3 +3,5 @@ PrisonIdentities/*.csv
 PerUserMfa/*.json
 SP/*.json
 SP/*.csv
+AllEnabledUsers/*.json
+AllEnabledUsers/*.csv
