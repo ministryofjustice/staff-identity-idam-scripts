@@ -19,3 +19,4 @@ The table below should be kept up to date with any additions or removals of scri
 | Service Principle | Queries all Service Principles and outputs 4 documents with details on SPs with less than 2 owners and SAML Apps notification emails. | [Link](./SP) |
 | Prison Identities | Queries every user in the tenent that belong to a Privately owned prison. Output is saved to a JSON and CSV file for later consumption. | [Link](./PrisonIdentities) |
 | Get all users in tenent that are active. | Queries the tenant for all active users and outputs as a JSON and CSV file. | [Link](./AllEnabledUsers.ps1) |
+| Access Token Lifetime Policies | Allows the manipulation of Access Token Lifetime Policies within Entra ID Application Registrations. | [Link](./AccessTokenLifetimePolicy) |
