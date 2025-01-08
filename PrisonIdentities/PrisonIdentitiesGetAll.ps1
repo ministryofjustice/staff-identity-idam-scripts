@@ -33,10 +33,10 @@ Foreach ($user in $allusers) {
         
         $LicenceList = ""
         $LicensesData = Get-MgUserLicenseDetail -userid $user.UserPrincipalName
-        foreach ($x in $LicensesData) {
-            $Licenses = $x.SkuPartNumber
+        foreach ($LicenceDataEntry in $LicensesData) {
+            $LicenseSKUs = $LicenceDataEntry.SkuPartNumber
             
-            foreach ($License in $Licenses) {
+            foreach ($License in $LicenseSKUs) {
                 if ($License -eq "M365_E5_SUITE_COMPONENTS") {
                     $LicenceList = $License
                 }
