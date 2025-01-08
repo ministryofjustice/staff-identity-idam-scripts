@@ -22,31 +22,28 @@ $InputArray = @(
     "HMP Thameside"
 )
 
-#initialise array
 $AllUsersPrisonIdentities = [System.Collections.Generic.List[Object]]::new()
 
-#Loop through each user and add results to array
-Foreach ($user in $allusers){
+Foreach ($user in $allusers) {
     if ($InputArray -contains $user.OfficeLocation) {
 
         $LastLoginDate = $user.SignInActivity.LastSignInDateTime
         $user | Add-Member -MemberType NoteProperty -Name LastLoginDate -Value $LastLoginDate -Force
         $user.PSObject.Properties.Remove('SignInActivity')
         
-        $licenses_data = get-mguserlicensedetail -userid $user.UserPrincipalName
-        foreach ($x in $licenses_data)
-        {
-            $licenses = $x.SkuPartNumber
+        $LicenceList = ""
+        $LicensesData = Get-MgUserLicenseDetail -userid $user.UserPrincipalName
+        foreach ($x in $LicensesData) {
+            $Licenses = $x.SkuPartNumber
             
-            foreach ($license in $licenses)
-            {
-                if ($license -eq "M365_E5_SUITE_COMPONENTS") {
-                    $licenceList = $license
+            foreach ($License in $Licenses) {
+                if ($License -eq "M365_E5_SUITE_COMPONENTS") {
+                    $LicenceList = $License
                 }
             }
         }
 
-        $user | Add-Member -Name Licences -Value $licenceList -MemberType NoteProperty
+        $user | Add-Member -Name Licences -Value $LicenceList -MemberType NoteProperty
         
         $AllUsersPrisonIdentities.Add($user)
     }
