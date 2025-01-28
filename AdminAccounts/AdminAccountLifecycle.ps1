@@ -8,17 +8,19 @@ $index = $workingDir.LastIndexOf('\')
 $workingDir = $workingDir.Substring(0, $index)
 $dateTime = (Get-Date -Format s) -replace "[\-T\:]",""
 $logPath = "$workingDir\AdminAccountLifecycle-$dateTime.log"
+$actionsLogPath = "$workingDir\AdminAccountLifecycleActions-$dateTime.csv"
 $disabledUserPath = "$workingDir\AdminAccountLifecycleDisabledUsers.csv"
+$archivePath = "$workingDir\AdminAccountLifecycle-$dateTime.zip"
+$lastSignInDate = (Get-Date).AddDays(-365)
+$disabledDateTime = (Get-Date).AddDays(-60)
 
 function Write-LogFile {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Path,
-
         [Parameter(Mandatory=$true)]
         [ValidateSet("Information","Warning","Error")]
         [string]$Type,
-
         [Parameter(Mandatory=$true)]
         [string]$Message
     )
@@ -31,6 +33,32 @@ function Write-LogFile {
         "$line [$($_.Exception.Message)]"
     }
 }
+
+function Write-ActionLog {
+    param(
+        [Parameter(Mandatory=$true)]
+        [ValidateSet(Disabled, Deleted)]
+        [string]$Action,
+        [Parameter(Mandatory=$true)]
+        [string]$Id,
+        [Parameter(Mandatory=$true)]
+        [string]$UserPrincipalName
+    )
+
+    $entry = New-Object -TypeName PSCustomObject -Property @{
+        DateTime = Get-Date -Format s;
+        Action = $Action;
+        Id = $Id;
+        UserPrincipalName = $UserPrincipalName;
+    }
+
+    try {
+        $entry | Select-Object DateTime,Action,Id,UserPrincipalName | Export-Csv $actionsLogPath -Append -NoTypeInformation -ErrorAction Stop
+    } catch {
+        Write-LogFile -Path $logPath -Type Warning -Message "Failed to write to actions log '$actionsLogPath' '$($entry.DateTime),$($entry.Action),$($entry.Id),$($entry.UserPrincipalName)'. $($_.Exception.Message)"
+    }
+}
+
 function Get-EntraIdAdminAccount {
     $roles = @()
     $adminUsers = @{}
@@ -133,13 +161,14 @@ try {
 $disabledUsers = @{}
 $users = @()
 $users += Get-EntraIdAdminAccount
-$lastSignInDate = (Get-Date).AddDays(-365)
 
 try {
-    $importedUsers = Import-Csv $disabledUserPath -ErrorAction Stop
-    $importedUsers | ForEach-Object {
-        if ($disabledUsers.ContainsKey($_.UserPrincipalName) -eq $false) {
-            $disabledUsers.Add($_.UserPrincipalName, $_)
+    if ((Test-Path $disabledUserPath) -eq $true) {
+        $importedUsers = Import-Csv $disabledUserPath -ErrorAction Stop
+        $importedUsers | ForEach-Object {
+            if ($disabledUsers.ContainsKey($_.Id) -eq $false -and $null -ne $foundUser) {
+                $disabledUsers.Add($_.Id, $_)
+            }
         }
     }
 } catch {
@@ -147,15 +176,14 @@ try {
 }
 
 foreach ($user in $users) {
-    try {
-        if ($user.SignInActivity.LastNonInteractiveSignInDateTime -ge $lastSignInDate -or
-            $user.SignInActivity.LastSignInDateTime -ge $lastSignInDate -or
-            $user.SignInActivity.LastSuccessfulSignInDateTime -ge $lastSignInDate) {
-            Write-LogFile -Path $logPath -Type Information -Message "Skipping $($user.UserPrincipalName) as last signin is after $lastSignInDate"
-            continue
+    if ($user.SignInActivity.LastNonInteractiveSignInDateTime -ge $lastSignInDate -or
+        $user.SignInActivity.LastSignInDateTime -ge $lastSignInDate -or
+        $user.SignInActivity.LastSuccessfulSignInDateTime -ge $lastSignInDate) {
+        Write-LogFile -Path $logPath -Type Information -Message "Skipping $($user.UserPrincipalName) as last sign-in is after $lastSignInDate"
+
+        if ($disabledUsers.ContainsKey($user.Id)) {
+            $disabledUsers.Remove($user.Id)
         }
-    } catch {
-        Write-LogFile -Path $logPath -Type Error -Message "Unable to find user $($user.UserPrincipalName). $($_.Exception.Message)"
         continue
     }
 
@@ -165,9 +193,9 @@ foreach ($user in $users) {
                 if ($user.OnPremisesSyncEnabled -eq $false) {
                     Update-MgUser -UserId $user.Id -AccountEnabled $false -ErrorAction Stop
 
-                    $disabledUsers[$user.UserPrincipalName].DateDisabled = Get-Date
-                    $disabledUsers[$user.UserPrincipalName].UserPrincipalName = $user.UserPrincipalName
+                    $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
 
+                    Write-ActionLog -Action Disabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
                     Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) has been disabled"
                 } else {
                     Write-LogFile -Path $logPath -Type Warning -Message "User account $($user.UserPrincipalName) is synced with Active Directory, unable to disable it via Graph"
@@ -175,9 +203,8 @@ foreach ($user in $users) {
             } else {
                 Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) is already disabled"
                 if ($user.OnPremisesSyncEnabled -eq $false) {
-                    if ($disabledUsers.ContainsKey($user.UserPrincipalName) -eq $false) {
-                        $disabledUsers[$user.UserPrincipalName].DateDisabled = Get-Date
-                        $disabledUsers[$user.UserPrincipalName].UserPrincipalName = $user.UserPrincipalName
+                    if ($disabledUsers.ContainsKey($user.Id) -eq $false) {
+                        $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
                     }
                 }
             }
@@ -187,6 +214,30 @@ foreach ($user in $users) {
     }
 
     if ($Delete.IsPresent) {
-
+        if ($disabledUsers.ContainsKey($user.Id)) {
+            if ($disabledUsers[$user.Id].DateDisabled -lt $disabledDateTime) {
+                try {
+                    Remove-MgUser -UserId $user.Id -ErrorAction Stop
+                    $disabledUsers.Remove($user.Id)
+                    Write-ActionLog -Action Deleted -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                    Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) has been deleted"
+                } catch {
+                    Write-LogFile -Path $logPath -Type Error -Message "Failed to delete user $($user.UserPrincipalName). $($_.Exception.Message)"
+                }
+            }
+        }
     }
+}
+
+try {
+    $disabledUsers.Keys | ForEach-Object { $disabledUsers[$_] | Select-Object DateDisabled,Id,UserPrincipalName } | Export-Csv $disabledUserPath -NoTypeInformation -ErrorAction Stop
+    Write-LogFile -Path $logPath -Type Information -Message "Written disabled user list to '$disabledUserPath'"
+} catch {
+    Write-LogFile -Path $logPath -Type Error -Message "Failed to write disabled user list to '$disabledUserPath'. $($_.Exception.Message)"
+}
+
+try {
+    Compress-Archive -Path $logPath,$actionsLogPath,$disabledUserPath -DestinationPath $archivePath -CompressionLevel Optimal -ErrorAction Stop
+} catch {
+    Write-LogFile -Path $logPath -Type Error -Message "Failed to create zip file '$archivePath'. $($_.Exception.Message)"
 }
