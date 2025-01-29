@@ -10,6 +10,7 @@ $dateTime = (Get-Date -Format s) -replace "[\-T\:]",""
 $logPath = "$workingDir\AdminAccountLifecycle-$dateTime.log"
 $actionsLogPath = "$workingDir\AdminAccountLifecycleActions-$dateTime.csv"
 $disabledUserPath = "$workingDir\AdminAccountLifecycleDisabledUsers.csv"
+$workingSetPath = "$workingDir\AdminAccountLifecycleWorkingSet-$dateTime.csv"
 $archivePath = "$workingDir\AdminAccountLifecycle-$dateTime.zip"
 $lastSignInDate = (Get-Date).AddDays(-365)
 $disabledDateTime = (Get-Date).AddDays(-60)
@@ -62,6 +63,7 @@ function Write-ActionLog {
 function Get-EntraIdAdminAccount {
     $roles = @()
     $adminUsers = @{}
+    $adminGroups = @{}
     $roleCount = 0
 
     try {
@@ -99,17 +101,24 @@ function Get-EntraIdAdminAccount {
             $group = $null
 
             if ($adminUsers.ContainsKey($assignment.PrincipalId) -eq $false) {
-                $user = Get-MgUser -UserId $assignment.PrincipalId -Property DisplayName,UserPrincipalName,Id,SignInActivity,AccountEnabled -ErrorAction SilentlyContinue | Select-Object Id,DisplayName,AccountEnabled,UserPrincipalName,@{Name="LastSignInDateTime"; Expression={ $_.SignInActivity.LastSignInDateTime }},@{Name="LastSuccessfulSignInDateTime"; Expression={ $_.SignInActivity.LastSuccessfulSignInDateTime }},@{Name="LastNonInteractiveSignInDateTime"; Expression={ $_.SignInActivity.LastNonInteractiveSignInDateTime }}
+                try {
+                    $user = Get-MgUser -UserId $assignment.PrincipalId -Property DisplayName,UserPrincipalName,Id,SignInActivity,AccountEnabled -ErrorAction Stop | Select-Object Id,DisplayName,AccountEnabled,UserPrincipalName,@{Name="LastSignInDateTime"; Expression={ $_.SignInActivity.LastSignInDateTime }},@{Name="LastSuccessfulSignInDateTime"; Expression={ $_.SignInActivity.LastSuccessfulSignInDateTime }},@{Name="LastNonInteractiveSignInDateTime"; Expression={ $_.SignInActivity.LastNonInteractiveSignInDateTime }}
+                } catch {
+                    Write-LogFile -Path $logPath -Type Warning -Message "Failed to get user $($assignment.PrincipalId), could it be a group? $($_.Exception.Message)"
+                }
 
-                if ($null -eq $user) {
-                    $group = Get-MgGroup -GroupId $assignment.PrincipalId -ErrorAction SilentlyContinue
+                if ($null -eq $user -and $adminGroups.ContainsKey($assignment.PrincipalId) -eq $false) {
+                    try {
+                        $group = Get-MgGroup -GroupId $assignment.PrincipalId -ErrorAction Stop
+                    } catch {
+                        Write-LogFile -Path $logPath -Type Warning -Message "Failed to get group $($assignment.PrincipalId), maybe it is not a user or group? $($_.Exception.Message)"
+                    }
                 }
 
                 if ($null -ne $group) {
                     $members = @()
                     $memberCount = 0
-
-                    
+                                        
                     try {
                         $members += Get-MgGroupMember -GroupId $assignment.PrincipalId -ErrorAction Stop
                     } catch {
@@ -134,13 +143,25 @@ function Get-EntraIdAdminAccount {
                                 $adminUsers.Add($member.Id, $user)
                             }
                         }
+
+                        if ($memberCount -eq $members.Count) {
+                            Write-Progress -Activity "Group $($group.DisplayName)" -Id 2 -Completed
+                        }
                     }
+
+                    $adminGroups.Add($assignment.PrincipalId, $group)
                 } elseif ($null -ne $user) {
                     $adminUsers.Add($assignment.PrincipalId, $user)
                 }
             }
+
+            if ($assignmentCount -eq $assignments.Count) {
+                Write-Progress -Activity "Role assignments" -Id 1 -Completed
+            }
         }
     }
+    
+    Write-Progress -Activity "Entra ID Roles" -Id 0 -Completed
 
     $userList = @()
 
@@ -152,7 +173,12 @@ function Get-EntraIdAdminAccount {
 }
 
 try {
-    Connect-MgGraph -Scopes "User.ReadWrite.All","AuditLog.Read.All" -NoWelcome -ErrorAction Stop
+    $scopes = "User.Read.All","AuditLog.Read.All"
+    if ($Disable.IsPresent -or $Delete.IsPresent) {
+        $scopes = "User.ReadWrite.All","AuditLog.Read.All"
+    }
+
+    Connect-MgGraph -Scopes $scopes -NoWelcome -ErrorAction Stop
 } catch {
     Write-LogFile -Path $logPath -Type Error -Message "Failed to login to Microsoft Graph. $($_.Exception.Message)"
     exit
@@ -166,7 +192,7 @@ try {
     if ((Test-Path $disabledUserPath) -eq $true) {
         $importedUsers = Import-Csv $disabledUserPath -ErrorAction Stop
         $importedUsers | ForEach-Object {
-            if ($disabledUsers.ContainsKey($_.Id) -eq $false -and $null -ne $foundUser) {
+            if ($disabledUsers.ContainsKey($_.Id) -eq $false) {
                 $disabledUsers.Add($_.Id, $_)
             }
         }
@@ -175,16 +201,28 @@ try {
     Write-LogFile -Path $logPath -Type Error -Message "Failed to import disabled users from '$disabledUserPath'. $($_.Exception.Message)"
 }
 
+$userCount = 0
+
 foreach ($user in $users) {
-    if ($user.SignInActivity.LastNonInteractiveSignInDateTime -ge $lastSignInDate -or
-        $user.SignInActivity.LastSignInDateTime -ge $lastSignInDate -or
-        $user.SignInActivity.LastSuccessfulSignInDateTime -ge $lastSignInDate) {
+    $userCount++
+
+    if ($user.LastNonInteractiveSignInDateTime -ge $lastSignInDate -or
+        $user.LastSignInDateTime -ge $lastSignInDate -or
+        $user.LastSuccessfulSignInDateTime -ge $lastSignInDate) {
         Write-LogFile -Path $logPath -Type Information -Message "Skipping $($user.UserPrincipalName) as last sign-in is after $lastSignInDate"
 
         if ($disabledUsers.ContainsKey($user.Id)) {
             $disabledUsers.Remove($user.Id)
         }
         continue
+    }
+
+    Write-Progress -Activity "Processing admin accounts" -Status "User $userCount of $($users.Count)" -PercentComplete (($userCount / $users.Count) * 100) -CurrentOperation $user.DisplayName -Id 0
+
+    try {
+        $user | Select-Object DisplayName,UserPrincipalName,AccountEnabled,Id,LastNonInteractiveSignInDateTime,LastSignInDateTime,LastSuccessfulSignInDateTime | Export-Csv $workingSetPath -NoTypeInformation -Append -ErrorAction Stop
+    } catch {
+        Write-LogFile -Path $logPath -Type Warning -Message "Failed to export admin account $($user.UserPrincipalName) to '$workingSetPath'. $($_.Exception.Message)"
     }
 
     if ($Disable.IsPresent) {
@@ -229,6 +267,8 @@ foreach ($user in $users) {
     }
 }
 
+Write-Progress -Activity "Processing admin accounts" -Id 0 -Completed
+
 try {
     $disabledUsers.Keys | ForEach-Object { $disabledUsers[$_] | Select-Object DateDisabled,Id,UserPrincipalName } | Export-Csv $disabledUserPath -NoTypeInformation -ErrorAction Stop
     Write-LogFile -Path $logPath -Type Information -Message "Written disabled user list to '$disabledUserPath'"
@@ -237,7 +277,24 @@ try {
 }
 
 try {
-    Compress-Archive -Path $logPath,$actionsLogPath,$disabledUserPath -DestinationPath $archivePath -CompressionLevel Optimal -ErrorAction Stop
+    $files = @()
+    if ((Test-Path $logPath) -eq $true) {
+        $files += $logPath
+    }
+
+    if ((Test-Path $actionsLogPath) -eq $true) {
+        $files += $actionsLogPath
+    }
+
+    if ((Test-Path $disabledUserPath) -eq $true) {
+        $files += $disabledUserPath
+    }
+
+    if ((Test-Path $workingSetPath) -eq $true) {
+        $files += $workingSetPath
+    }
+
+    Compress-Archive -Path $files -DestinationPath $archivePath -CompressionLevel Optimal -ErrorAction Stop
 } catch {
     Write-LogFile -Path $logPath -Type Error -Message "Failed to create zip file '$archivePath'. $($_.Exception.Message)"
 }
