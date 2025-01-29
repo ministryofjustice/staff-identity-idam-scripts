@@ -102,7 +102,7 @@ function Get-EntraIdAdminAccount {
 
             if ($adminUsers.ContainsKey($assignment.PrincipalId) -eq $false) {
                 try {
-                    $user = Get-MgUser -UserId $assignment.PrincipalId -Property DisplayName,UserPrincipalName,Id,SignInActivity,AccountEnabled -ErrorAction Stop | Select-Object Id,DisplayName,AccountEnabled,UserPrincipalName,@{Name="LastSignInDateTime"; Expression={ $_.SignInActivity.LastSignInDateTime }},@{Name="LastSuccessfulSignInDateTime"; Expression={ $_.SignInActivity.LastSuccessfulSignInDateTime }},@{Name="LastNonInteractiveSignInDateTime"; Expression={ $_.SignInActivity.LastNonInteractiveSignInDateTime }}
+                    $user = Get-MgUser -UserId $assignment.PrincipalId -Property DisplayName,UserPrincipalName,Id,SignInActivity,AccountEnabled,OnPremisesSyncEnabled -ErrorAction Stop | Select-Object Id,DisplayName,AccountEnabled,UserPrincipalName,OnPremisesSyncEnabled,@{Name="LastSignInDateTime"; Expression={ $_.SignInActivity.LastSignInDateTime }},@{Name="LastSuccessfulSignInDateTime"; Expression={ $_.SignInActivity.LastSuccessfulSignInDateTime }},@{Name="LastNonInteractiveSignInDateTime"; Expression={ $_.SignInActivity.LastNonInteractiveSignInDateTime }}
                 } catch {
                     Write-LogFile -Path $logPath -Type Warning -Message "Failed to get user $($assignment.PrincipalId), could it be a group? $($_.Exception.Message)"
                 }
@@ -110,6 +110,7 @@ function Get-EntraIdAdminAccount {
                 if ($null -eq $user -and $adminGroups.ContainsKey($assignment.PrincipalId) -eq $false) {
                     try {
                         $group = Get-MgGroup -GroupId $assignment.PrincipalId -ErrorAction Stop
+                        Write-LogFile -Path $logPath -Type Information -Message "Principal Id $($assignment.PrincipalId) is group $($group.DisplayName)"
                     } catch {
                         Write-LogFile -Path $logPath -Type Warning -Message "Failed to get group $($assignment.PrincipalId), maybe it is not a user or group? $($_.Exception.Message)"
                     }
@@ -134,7 +135,7 @@ function Get-EntraIdAdminAccount {
                             $user = $null
 
                             try {
-                                $user = Get-MgUser -UserId $member.Id -Property DisplayName,UserPrincipalName,Id,SignInActivity,AccountEnabled -ErrorAction Stop | Select-Object Id,DisplayName,AccountEnabled,UserPrincipalName,@{Name="LastSignInDateTime"; Expression={ $_.SignInActivity.LastSignInDateTime }},@{Name="LastSuccessfulSignInDateTime"; Expression={ $_.SignInActivity.LastSuccessfulSignInDateTime }},@{Name="LastNonInteractiveSignInDateTime"; Expression={ $_.SignInActivity.LastNonInteractiveSignInDateTime }}
+                                $user = Get-MgUser -UserId $member.Id -Property DisplayName,UserPrincipalName,Id,SignInActivity,AccountEnabled,OnPremisesSyncEnabled -ErrorAction Stop | Select-Object Id,DisplayName,AccountEnabled,UserPrincipalName,OnPremisesSyncEnabled,@{Name="LastSignInDateTime"; Expression={ $_.SignInActivity.LastSignInDateTime }},@{Name="LastSuccessfulSignInDateTime"; Expression={ $_.SignInActivity.LastSuccessfulSignInDateTime }},@{Name="LastNonInteractiveSignInDateTime"; Expression={ $_.SignInActivity.LastNonInteractiveSignInDateTime }}
                             } catch {
                                 Write-LogFile -Path $logPath -Type Error -Message "Failed to get user $($member.Id) in group $($group.DisplayName). $($_.Exception.Message)"
                             }
@@ -205,6 +206,8 @@ $userCount = 0
 
 foreach ($user in $users) {
     $userCount++
+    
+    Write-Progress -Activity "Processing admin accounts" -Status "User $userCount of $($users.Count)" -PercentComplete (($userCount / $users.Count) * 100) -CurrentOperation $user.DisplayName -Id 0
 
     if ($user.LastNonInteractiveSignInDateTime -ge $lastSignInDate -or
         $user.LastSignInDateTime -ge $lastSignInDate -or
@@ -217,18 +220,16 @@ foreach ($user in $users) {
         continue
     }
 
-    Write-Progress -Activity "Processing admin accounts" -Status "User $userCount of $($users.Count)" -PercentComplete (($userCount / $users.Count) * 100) -CurrentOperation $user.DisplayName -Id 0
-
     try {
-        $user | Select-Object DisplayName,UserPrincipalName,AccountEnabled,Id,LastNonInteractiveSignInDateTime,LastSignInDateTime,LastSuccessfulSignInDateTime | Export-Csv $workingSetPath -NoTypeInformation -Append -ErrorAction Stop
+        $user | Select-Object DisplayName,UserPrincipalName,AccountEnabled,Id,OnPremisesSyncEnabled,LastNonInteractiveSignInDateTime,LastSignInDateTime,LastSuccessfulSignInDateTime | Export-Csv $workingSetPath -NoTypeInformation -Append -ErrorAction Stop
     } catch {
         Write-LogFile -Path $logPath -Type Warning -Message "Failed to export admin account $($user.UserPrincipalName) to '$workingSetPath'. $($_.Exception.Message)"
     }
 
-    if ($Disable.IsPresent) {
-        try {
-            if ($user.AccountEnabled -eq $true) {
-                if ($user.OnPremisesSyncEnabled -eq $false) {
+    try {
+        if ($user.AccountEnabled -eq $true) {
+            if ($user.OnPremisesSyncEnabled -eq $false) {
+                if ($Disable.IsPresent) {
                     Update-MgUser -UserId $user.Id -AccountEnabled $false -ErrorAction Stop
 
                     $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
@@ -236,32 +237,36 @@ foreach ($user in $users) {
                     Write-ActionLog -Action Disabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
                     Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) has been disabled"
                 } else {
-                    Write-LogFile -Path $logPath -Type Warning -Message "User account $($user.UserPrincipalName) is synced with Active Directory, unable to disable it via Graph"
+                    Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) would have been disabled, but disable switch has not been used"
                 }
             } else {
-                Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) is already disabled"
-                if ($user.OnPremisesSyncEnabled -eq $false) {
-                    if ($disabledUsers.ContainsKey($user.Id) -eq $false) {
-                        $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
-                    }
+                Write-LogFile -Path $logPath -Type Warning -Message "User account $($user.UserPrincipalName) is synced with Active Directory, cannot disable it via Graph"
+            }
+        } else {
+            Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) is already disabled"
+            if ($user.OnPremisesSyncEnabled -eq $false -and $Disable.IsPresent) {
+                if ($disabledUsers.ContainsKey($user.Id) -eq $false) {
+                    $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
                 }
             }
-        } catch {
-            Write-LogFile -Path $logPath -Type Error -Message "Failed to disable user account $($user.UserPrincipalName). $($_.Exception.Message)"
         }
+    } catch {
+        Write-LogFile -Path $logPath -Type Error -Message "Failed to disable user account $($user.UserPrincipalName). $($_.Exception.Message)"
     }
 
-    if ($Delete.IsPresent) {
-        if ($disabledUsers.ContainsKey($user.Id)) {
-            if ($disabledUsers[$user.Id].DateDisabled -lt $disabledDateTime) {
-                try {
+    if ($disabledUsers.ContainsKey($user.Id)) {
+        if ($disabledUsers[$user.Id].DateDisabled -lt $disabledDateTime) {
+            try {
+                if ($Delete.IsPresent) {
                     Remove-MgUser -UserId $user.Id -ErrorAction Stop
                     $disabledUsers.Remove($user.Id)
                     Write-ActionLog -Action Deleted -Id $user.Id -UserPrincipalName $user.UserPrincipalName
                     Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) has been deleted"
-                } catch {
-                    Write-LogFile -Path $logPath -Type Error -Message "Failed to delete user $($user.UserPrincipalName). $($_.Exception.Message)"
+                } else {
+                    Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) would have been deleted, if the delete switch had been used"
                 }
+            } catch {
+                Write-LogFile -Path $logPath -Type Error -Message "Failed to delete user $($user.UserPrincipalName). $($_.Exception.Message)"
             }
         }
     }
