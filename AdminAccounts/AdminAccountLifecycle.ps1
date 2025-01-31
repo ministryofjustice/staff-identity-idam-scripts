@@ -1,6 +1,13 @@
+[CmdletBinding(DefaultParameterSetName="DisableAndDelete")]
 param(
+    [Parameter(ParameterSetName="DisableAndDelete")]
     [switch]$Disable,
-    [switch]$Delete
+    [Parameter(ParameterSetName="DisableAndDelete")]
+    [switch]$Delete,
+    [Parameter(Mandatory=$true, ParameterSetName="UndoChanges")]
+    [switch]$Undo,
+    [Parameter(Mandatory=$true, ParameterSetName="UndoChanges")]
+    [string]$Path
 )
 
 $workingDir = $MyInvocation.MyCommand.Path
@@ -38,7 +45,7 @@ function Write-LogFile {
 function Write-ActionLog {
     param(
         [Parameter(Mandatory=$true)]
-        [ValidateSet(Disabled, Deleted)]
+        [ValidateSet(Disabled, Deleted, Restored, Enabled)]
         [string]$Action,
         [Parameter(Mandatory=$true)]
         [string]$Id,
@@ -58,6 +65,14 @@ function Write-ActionLog {
     } catch {
         Write-LogFile -Path $logPath -Type Warning -Message "Failed to write to actions log '$actionsLogPath' '$($entry.DateTime),$($entry.Action),$($entry.Id),$($entry.UserPrincipalName)'. $($_.Exception.Message)"
     }
+}
+
+function Undo-Change {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Path
+    )
+    
 }
 
 function Get-EntraIdAdminAccount {
@@ -177,6 +192,8 @@ try {
     $scopes = "User.Read.All","AuditLog.Read.All"
     if ($Disable.IsPresent -or $Delete.IsPresent) {
         $scopes = "User.ReadWrite.All","AuditLog.Read.All"
+    } elseif ($Undo.IsPresent) {
+        $scopes = "User.ReadWrite.All"
     }
 
     Connect-MgGraph -Scopes $scopes -NoWelcome -ErrorAction Stop
@@ -300,6 +317,12 @@ try {
     }
 
     Compress-Archive -Path $files -DestinationPath $archivePath -CompressionLevel Optimal -ErrorAction Stop
+
+    foreach ($fileName in $files) {
+        if ($fileName -ne $disabledUserPath) {
+            Remove-Item -Path $fileName -Force -Confirm:$false -ErrorAction SilentlyContinue
+        }
+    }
 } catch {
     Write-LogFile -Path $logPath -Type Error -Message "Failed to create zip file '$archivePath'. $($_.Exception.Message)"
 }
