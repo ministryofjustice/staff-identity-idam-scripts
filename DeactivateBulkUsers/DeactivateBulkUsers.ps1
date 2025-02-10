@@ -8,8 +8,8 @@
 
 # --- Start variables
 
-# Test user
-$user = "michael.tulett@justice.gov.uk"
+# Test user, you can add a test user
+$user = ""
 
 # Enter the path for your input file here, it should contain 1 UPN per line with no headers
 $file = #put file path here
