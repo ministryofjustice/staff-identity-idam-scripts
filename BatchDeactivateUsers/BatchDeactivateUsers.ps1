@@ -57,3 +57,4 @@ $postResults = foreach ($user in $users){
     get-aduser -filter 'UserPrincipalName -like $user' -Properties Description | Select Name,UserPrincipalName,Enabled,Description,DistinguishedName,@{n='OU';e={$_.DistinguishedName -replace '^.*?,(?=[A-Z]{2}=)'}}
     }
 $postResults | Export-Csv -path $outputPost -NoTypeInformation
+
