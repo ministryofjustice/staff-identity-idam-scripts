@@ -45,7 +45,7 @@ if ($check -ne "YES"){
     exit}
 
 write-host "proceeding in 10 seconds..." -ForegroundColor Cyan
-sleep 10
+Start-Sleep -Seconds 10
 
 foreach ($user in $users){
     # Remove this WhatIf when running live
