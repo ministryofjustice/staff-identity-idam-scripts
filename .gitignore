@@ -5,3 +5,4 @@ SP/*.json
 SP/*.csv
 AllEnabledUsers/*.json
 AllEnabledUsers/*.csv
+.vscode/
