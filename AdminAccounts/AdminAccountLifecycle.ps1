@@ -10,6 +10,14 @@ param(
     [string]$Path
 )
 
+<#
+    .SYNOPSIS
+    A script to manage the lifecycle of Entra Id admin accounts.
+
+    .DESCRIPTION
+    The script will disable admin accounts not signed in for the 365 days and delete accounts that have been disabled by the script for 60 days.
+#>
+
 $workingDir = $MyInvocation.MyCommand.Path
 $index = $workingDir.LastIndexOf('\')
 $workingDir = $workingDir.Substring(0, $index)
@@ -21,6 +29,7 @@ $workingSetPath = "$workingDir\AdminAccountLifecycleWorkingSet-$dateTime.csv"
 $archivePath = "$workingDir\AdminAccountLifecycle-$dateTime.zip"
 $lastSignInDate = (Get-Date).AddDays(-365)
 $disabledDateTime = (Get-Date).AddDays(-60)
+$disabledUsers = @{}
 
 function Write-LogFile {
     param(
@@ -73,6 +82,35 @@ function Undo-Change {
         [string]$Path
     )
     
+    $users = @()
+
+    try {
+        $users += Import-Csv $Path -ErrorAction Stop
+    } catch {
+        Write-LogFile -Path $logPath -Type Error -Message "Failed to import $Path. $($_.Exception.Message)"
+        exit
+    }
+    
+    foreach ($user in $users) {
+        if ($user.Action -eq "Disabled") {
+            try {
+                Update-MgUser -UserId $user.Id -AccountEnabled $true -ErrorAction Stop
+                $disabledUsers.Remove($user.Id)
+                Write-ActionLog -Action Enabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                Write-LogFile -Path $logPath -Type Information -Message "Enabled account $($user.UserPrincipalName)"
+            } catch {
+                Write-LogFile -Path $logPath -Type Error -Message "Failed to enable account $($user.UserPrincipalName). $($_.Exception.Message)"
+            }
+        } elseif ($user.Action -eq "Deleted") {
+            try {
+                Restore-MgDirectoryDeletedItem -DirectoryObjectId $user.Id -ErrorAction Stop
+                Write-ActionLog -Action Restored -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                Write-LogFile -Path $logPath -Type Information -Message "Restored deleted account $($user.UserPrincipalName)"
+            } catch {
+                Write-LogFile -Path $logPath -Type Error -Message "Failed to restore deleted user $($user.UserPrincipalName). $($_.Exception.Message)"
+            }
+        }
+    }
 }
 
 function Get-EntraIdAdminAccount {
@@ -202,7 +240,6 @@ try {
     exit
 }
 
-$disabledUsers = @{}
 $users = @()
 $users += Get-EntraIdAdminAccount
 
@@ -219,77 +256,81 @@ try {
     Write-LogFile -Path $logPath -Type Error -Message "Failed to import disabled users from '$disabledUserPath'. $($_.Exception.Message)"
 }
 
-$userCount = 0
+if ($Undo.IsPresent) {
+    Undo-Change -Path $Path
+} else {
+    $userCount = 0
 
-foreach ($user in $users) {
-    $userCount++
-    
-    Write-Progress -Activity "Processing admin accounts" -Status "User $userCount of $($users.Count)" -PercentComplete (($userCount / $users.Count) * 100) -CurrentOperation $user.DisplayName -Id 0
+    foreach ($user in $users) {
+        $userCount++
+        
+        Write-Progress -Activity "Processing admin accounts" -Status "User $userCount of $($users.Count)" -PercentComplete (($userCount / $users.Count) * 100) -CurrentOperation $user.DisplayName -Id 0
 
-    if ($user.LastNonInteractiveSignInDateTime -ge $lastSignInDate -or
-        $user.LastSignInDateTime -ge $lastSignInDate -or
-        $user.LastSuccessfulSignInDateTime -ge $lastSignInDate) {
-        Write-LogFile -Path $logPath -Type Information -Message "Skipping $($user.UserPrincipalName) as last sign-in is after $lastSignInDate"
+        if ($user.LastNonInteractiveSignInDateTime -ge $lastSignInDate -or
+            $user.LastSignInDateTime -ge $lastSignInDate -or
+            $user.LastSuccessfulSignInDateTime -ge $lastSignInDate) {
+            Write-LogFile -Path $logPath -Type Information -Message "Skipping $($user.UserPrincipalName) as last sign-in is after $lastSignInDate"
 
-        if ($disabledUsers.ContainsKey($user.Id)) {
-            $disabledUsers.Remove($user.Id)
+            if ($disabledUsers.ContainsKey($user.Id)) {
+                $disabledUsers.Remove($user.Id)
+            }
+            continue
         }
-        continue
-    }
 
-    try {
-        $user | Select-Object DisplayName,UserPrincipalName,AccountEnabled,Id,OnPremisesSyncEnabled,LastNonInteractiveSignInDateTime,LastSignInDateTime,LastSuccessfulSignInDateTime | Export-Csv $workingSetPath -NoTypeInformation -Append -ErrorAction Stop
-    } catch {
-        Write-LogFile -Path $logPath -Type Warning -Message "Failed to export admin account $($user.UserPrincipalName) to '$workingSetPath'. $($_.Exception.Message)"
-    }
+        try {
+            $user | Select-Object DisplayName,UserPrincipalName,AccountEnabled,Id,OnPremisesSyncEnabled,LastNonInteractiveSignInDateTime,LastSignInDateTime,LastSuccessfulSignInDateTime | Export-Csv $workingSetPath -NoTypeInformation -Append -ErrorAction Stop
+        } catch {
+            Write-LogFile -Path $logPath -Type Warning -Message "Failed to export admin account $($user.UserPrincipalName) to '$workingSetPath'. $($_.Exception.Message)"
+        }
 
-    try {
-        if ($user.AccountEnabled -eq $true) {
-            if ($user.OnPremisesSyncEnabled -eq $false) {
-                if ($Disable.IsPresent) {
-                    Update-MgUser -UserId $user.Id -AccountEnabled $false -ErrorAction Stop
+        try {
+            if ($user.AccountEnabled -eq $true) {
+                if ($user.OnPremisesSyncEnabled -eq $false) {
+                    if ($Disable.IsPresent) {
+                        Update-MgUser -UserId $user.Id -AccountEnabled $false -ErrorAction Stop
 
-                    $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
+                        $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
 
-                    Write-ActionLog -Action Disabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
-                    Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) has been disabled"
+                        Write-ActionLog -Action Disabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                        Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) has been disabled"
+                    } else {
+                        Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) would have been disabled, but disable switch has not been used"
+                    }
                 } else {
-                    Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) would have been disabled, but disable switch has not been used"
+                    Write-LogFile -Path $logPath -Type Warning -Message "User account $($user.UserPrincipalName) is synced with Active Directory, cannot disable it via Graph"
                 }
             } else {
-                Write-LogFile -Path $logPath -Type Warning -Message "User account $($user.UserPrincipalName) is synced with Active Directory, cannot disable it via Graph"
+                Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) is already disabled"
+                if ($user.OnPremisesSyncEnabled -eq $false -and $Disable.IsPresent) {
+                    if ($disabledUsers.ContainsKey($user.Id) -eq $false) {
+                        $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
+                    }
+                }
             }
-        } else {
-            Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) is already disabled"
-            if ($user.OnPremisesSyncEnabled -eq $false -and $Disable.IsPresent) {
-                if ($disabledUsers.ContainsKey($user.Id) -eq $false) {
-                    $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
+        } catch {
+            Write-LogFile -Path $logPath -Type Error -Message "Failed to disable user account $($user.UserPrincipalName). $($_.Exception.Message)"
+        }
+
+        if ($disabledUsers.ContainsKey($user.Id)) {
+            if ($disabledUsers[$user.Id].DateDisabled -lt $disabledDateTime) {
+                try {
+                    if ($Delete.IsPresent) {
+                        Remove-MgUser -UserId $user.Id -ErrorAction Stop
+                        $disabledUsers.Remove($user.Id)
+                        Write-ActionLog -Action Deleted -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                        Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) has been deleted"
+                    } else {
+                        Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) would have been deleted, if the delete switch had been used"
+                    }
+                } catch {
+                    Write-LogFile -Path $logPath -Type Error -Message "Failed to delete user $($user.UserPrincipalName). $($_.Exception.Message)"
                 }
             }
         }
-    } catch {
-        Write-LogFile -Path $logPath -Type Error -Message "Failed to disable user account $($user.UserPrincipalName). $($_.Exception.Message)"
     }
 
-    if ($disabledUsers.ContainsKey($user.Id)) {
-        if ($disabledUsers[$user.Id].DateDisabled -lt $disabledDateTime) {
-            try {
-                if ($Delete.IsPresent) {
-                    Remove-MgUser -UserId $user.Id -ErrorAction Stop
-                    $disabledUsers.Remove($user.Id)
-                    Write-ActionLog -Action Deleted -Id $user.Id -UserPrincipalName $user.UserPrincipalName
-                    Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) has been deleted"
-                } else {
-                    Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) would have been deleted, if the delete switch had been used"
-                }
-            } catch {
-                Write-LogFile -Path $logPath -Type Error -Message "Failed to delete user $($user.UserPrincipalName). $($_.Exception.Message)"
-            }
-        }
-    }
+    Write-Progress -Activity "Processing admin accounts" -Id 0 -Completed
 }
-
-Write-Progress -Activity "Processing admin accounts" -Id 0 -Completed
 
 try {
     $disabledUsers.Keys | ForEach-Object { $disabledUsers[$_] | Select-Object DateDisabled,Id,UserPrincipalName } | Export-Csv $disabledUserPath -NoTypeInformation -ErrorAction Stop
