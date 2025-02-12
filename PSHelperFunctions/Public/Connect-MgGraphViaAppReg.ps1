@@ -8,15 +8,15 @@ using application registration with client credentials flow. This function is ty
 where you want to automate tasks that require accessing Microsoft Graph resources without user interaction.
 
 .PARAMETER ClientId
-Specifies the client ID (Application ID) of the registered application in Azure Active Directory (AAD).
+Specifies the client ID (Application ID) of the registered application in Entra ID.
 This parameter is mandatory and requires a valid client ID.
 
 .PARAMETER ClientSecret
-Specifies the client secret (Application secret) of the registered application in Azure Active Directory (AAD).
+Specifies the client secret (Application secret) of the registered application in Entra ID.
 This parameter is mandatory and requires a valid client secret.
 
 .PARAMETER TenantId
-Specifies the directory (tenant) ID of the Azure AD tenant where the registered application is located.
+Specifies the directory (tenant) ID of the Azure Entra ID tenant where the registered application is located.
 This parameter is mandatory and requires a valid tenant ID.
 
 .EXAMPLE
