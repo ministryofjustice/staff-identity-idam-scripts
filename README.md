@@ -20,3 +20,66 @@ The table below should be kept up to date with any additions or removals of scri
 | Prison Identities | Queries every user in the tenent that belong to a Privately owned prison. Output is saved to a JSON and CSV file for later consumption. | [Link](./PrisonIdentities) |
 | Get all users in tenent that are active. | Queries the tenant for all active users and outputs as a JSON and CSV file. | [Link](./AllEnabledUsers.ps1) |
 | Access Token Lifetime Policies | Allows the manipulation of Access Token Lifetime Policies within Entra ID Application Registrations. | [Link](./AccessTokenLifetimePolicy) |
+
+# PSHelperFunctions Module
+
+This module houses reusable functions, which are to be used across other scripts. When writing scripts, if any parts could be used by others in the future. Please split the code into it's own function within PSHelperFunctions\Public. This will save us development time and will keep code consistent.
+
+This module has been developed and tested using [PowerShell 7](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell),
+which is cross-platform and easily installed on
+[Windows](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-windows),
+[Linux](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-linux), and
+[macOS](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-macos).
+
+
+## Usage
+
+Run the following commands to install and use this PowerShell module:
+
+1. Clone this repo:
+
+    ```powershell
+    git clone git@github.com:ministryofjustice/staff-identity-idam-scripts.git
+    ```
+
+2. Import the module (from the root of the cloned repo):
+
+    ```powershell
+    Import-Module "\staff-identity-idam-scripts/PSHelperFunctions.psd1" -Verbose
+    ```
+
+3. List available functions:
+
+    ```powershell
+    Get-Command -Module "PSHelperFunctions"
+
+    CommandType     Name                                               Version    Source
+    -----------     ----                                               -------    ------
+
+    ```
+
+1. Show help for a specific function, eg:
+
+    ```powershell
+    # show generic help
+    Get-Help "Remove-AzDiskSnapshots"
+
+    # show examples
+    Get-Help "Remove-AzDiskSnapshots" -Examples
+
+    # show full / detailed help
+    Get-Help "Remove-AzDiskSnapshots" -Full
+    Get-Help "Remove-AzDiskSnapshots" -Detailed
+    ```
+
+## Functions
+
+- [PSHelperFunctions](#pshelperfunctions)
+  - [Usage](#usage)
+  - [Functions](#functions)
+
+The current function summaries are shown below, but you can view full help by importing the module then running:
+
+```powershell
+Get-Help "<FUNCTION-NAME>" -Full
+```
