@@ -45,7 +45,7 @@ Run the following commands to install and use this PowerShell module:
 2. Import the module (from the root of the cloned repo):
 
     ```powershell
-    Import-Module "\staff-identity-idam-scripts/PSHelperFunctions.psd1" -Verbose
+    Import-Module "\staff-identity-idam-scripts/PSHelperFunctions.psd1" -Verbose -Force
     ```
 
 3. List available functions:
@@ -55,21 +55,21 @@ Run the following commands to install and use this PowerShell module:
 
     CommandType     Name                                               Version    Source
     -----------     ----                                               -------    ------
-
+    Function        Connect-MgGraphViaAppReg                           1.0.0      PSHelperFunctions
     ```
 
 1. Show help for a specific function, eg:
 
     ```powershell
     # show generic help
-    Get-Help "Remove-AzDiskSnapshots"
+    Get-Help "Connect-MgGraphViaAppReg"
 
     # show examples
-    Get-Help "Remove-AzDiskSnapshots" -Examples
+    Get-Help "Connect-MgGraphViaAppReg" -Examples
 
     # show full / detailed help
-    Get-Help "Remove-AzDiskSnapshots" -Full
-    Get-Help "Remove-AzDiskSnapshots" -Detailed
+    Get-Help "Connect-MgGraphViaAppReg" -Full
+    Get-Help "Connect-MgGraphViaAppReg" -Detailed
     ```
 
 ## Functions
@@ -77,9 +77,40 @@ Run the following commands to install and use this PowerShell module:
 - [PSHelperFunctions](#pshelperfunctions)
   - [Usage](#usage)
   - [Functions](#functions)
+    -[Connect-MgGraphViaAppReg](https://github.com/ministryofjustice/staff-identity-idam-scripts/tree/main/PSHelperFunctions/Public/Connect-MgGraphViaAppReg.ps1)
 
 The current function summaries are shown below, but you can view full help by importing the module then running:
 
 ```powershell
 Get-Help "<FUNCTION-NAME>" -Full
+```
+
+### Connect-MgGraphViaAppReg
+
+The `Connect-MgGraphViaAppReg` function connects to Microsoft Graph (MG) by obtaining an access token
+using application registration with client credentials flow. This function is typically used in scenarios
+where you want to automate tasks that require accessing Microsoft Graph resources without user interaction.
+
+## Example
+
+```powershell
+# Import this module
+ Import-Module "\staff-identity-idam-scripts/PSHelperFunctions.psd1" -Verbose -Force
+
+
+# Vars
+$clientId = ""
+$clientSecret = ""
+$tenantId = ""
+
+$param = @{
+    ClientId = $clientId
+    ClientSecret = $clientSecret
+    TenantId = $tenantId
+}
+
+Connect-MgGraphViaAppReg @param
+
+# Test obtaining all users
+Get-MgUser -All | Format-List  ID, DisplayName, Mail, UserPrincipalName
 ```
