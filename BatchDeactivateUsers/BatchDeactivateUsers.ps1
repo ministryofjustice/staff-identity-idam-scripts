@@ -38,19 +38,19 @@ $preResults = foreach ($user in $users){
     }
 $preResults | Export-Csv -path $outputPre -NoTypeInformation
 
-$check = read-host "Are you ready to proceed with deactivations? Type YES and press Enter"
+$preResults | select Name
+$check = read-host "Are you ready to proceed with deactivation of the above users? Type YES and press Enter"
 if ($check -ne "YES"){
     write-host "exiting" -ForegroundColor Yellow
-    sleep 2
+    Start-Sleep -seconds 2
     exit}
 
 write-host "proceeding in 10 seconds..." -ForegroundColor Cyan
 Start-Sleep -Seconds 10
 
 foreach ($user in $users){
-    # Remove this WhatIf when running live
-    set-aduser $user -Description "Deactivated - DualRunner" -Enabled $false -WhatIf
-    Move-ADObject -Identity $user -TargetPath $OUPath -WhatIf
+    set-aduser $user.Split("@")[0] -Description "Deactivated - DualRunner" -Enabled $false
+    get-aduser $user.Split("@")[0] | Move-ADObject -TargetPath $OUPath
 }
 
 $postResults = foreach ($user in $users){
