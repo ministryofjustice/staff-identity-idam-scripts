@@ -40,7 +40,7 @@ foreach ($role in $aadRoles) {
                     get-mguser -userid $standarduser -Property Id, DisplayName, UserPrincipalName, AccountEnabled | select Id, DisplayName, UserPrincipalName, AccountEnabled -erroraction 'silentlycontinue'
                 }
 
-                # if standard disabled but onmicrosoft enabled, add "concern" column
+                # if standard disabled but onmicrosoft enabled, populate "concern" column
                 $concern = $null
                 if ($user.AccountEnabled -eq $True -and $standardcheck.AccountEnabled -eq $False) {
                     $concern = "True"
@@ -56,11 +56,9 @@ foreach ($role in $aadRoles) {
                 $obj | add-member -MemberType "NoteProperty" -Name MemberType -value $usr.MemberType
                 $obj | add-member -MemberType "NoteProperty" -Name StartDate -value $usr.StartDateTime
                 $obj | add-member -MemberType "NoteProperty" -Name EndDate -value $usr.EndDateTime 
-                # add active state for both onmicrosft and standard accounts here
                 $obj | add-member -MemberType "NoteProperty" -Name AccountEnabled -value $user.AccountEnabled
                 $obj | add-member -MemberType "NoteProperty" -Name StandardAccount -value $standardcheck.UserPrincipalName
                 $obj | add-member -MemberType "NoteProperty" -Name StandardAccountEnabled -value $standardcheck.AccountEnabled
-                # if standard disabled but onmicrosoft enabled, add "concern" column
                 $obj | add-member -MemberType "NoteProperty" -Name Concern -value $concern
        
                 $x += $obj
