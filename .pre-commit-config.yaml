@@ -1,0 +1,22 @@
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.4.0
+  hooks:
+    - id: trailing-whitespace
+    - id: end-of-file-fixer
+      exclude: '^\.idea/'
+    - id: check-yaml
+    - id: check-json
+    - id: no-commit-to-branch
+- repo: https://github.com/awslabs/git-secrets
+  rev: master
+  hooks:
+    - id: git-secrets
+
+- repo: local
+  hooks:
+    - id: pwsh-format
+      name: PSScriptAnalyzer
+      entry: pwsh -Command "Invoke-ScriptAnalyzer -Path . -Recurse"
+      language: system
+      files: \.ps1$
