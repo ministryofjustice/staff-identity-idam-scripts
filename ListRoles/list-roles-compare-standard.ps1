@@ -1,7 +1,7 @@
 #==========================================================================
 #List-Roles-compare-standard.ps1
 # Based on list-roles.ps1 , this version lists roles and users assigned, then
-# comapres to enabled state of standard accounts
+# compares to enabled state of standard accounts
 # PIM Doesnt require any special rights
 #
 # V1.0  - initial version
