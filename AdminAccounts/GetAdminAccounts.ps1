@@ -1,9 +1,35 @@
+<#
+    .SYNOPSIS
+    Gets all user accounts assigned one or more Entra Id admin roles
+
+    .DESCRIPTION
+    Enumerates through all the Entra Id admin roles gathering a list of users, groups and the group members and export them out to a CSV file.
+    Make sure to activate the Global Reader role to gather the LastSigninActivity property from the user accounts.
+
+    .PARAMETER Path
+    CSV file to export the user and groups assigned one or more Entra Id roles.
+
+    .INPUTS
+    None, you cannot pipe objects to this script.
+
+    .OUTPUTS
+    Results are exported to CSV file specified by the Path parameter.
+
+    .EXAMPLE
+    PS> .\GetAdminAccounts.ps1 -Path .\AdminAccounts.csv
+#>
+
 param(
     [Parameter(Mandatory=$true, Position=0)]
     [string]$Path
 )
 
-Connect-MgGraph -Scopes "User.Read.All","AuditLog.Read.all" -NoWelcome
+try {
+    Connect-MgGraph -Scopes "User.Read.All","AuditLog.Read.all" -NoWelcome -ErrorAction Stop
+} catch {
+    "Failed to login to Microsoft Graph PowerShell. $($_.Exception.Message)"
+    exit
+}
 
 $roles = @()
 $adminUsers = @{}
@@ -80,12 +106,18 @@ foreach ($role in $roles) {
                         }
                     }
                 }
+
+                Write-Progress -Activity "Group $($group.DisplayName)" -Id 2 -Completed
             } elseif ($null -ne $user) {
                 $adminUsers.Add($assignment.PrincipalId, $user)
             }
         }
     }
+
+    Write-Progress -Activity "Role assignments" -Id 1 -Completed
 }
+
+Write-Progress -Activity "Entra ID Roles" -Id 0 -Completed
 
 $userList = @()
 
