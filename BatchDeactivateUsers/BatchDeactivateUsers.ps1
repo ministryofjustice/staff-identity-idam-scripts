@@ -89,7 +89,7 @@ if ($check -ne "YES"){
 write-host "proceeding in 10 seconds... use ctrl+c to abort" -ForegroundColor Cyan
 Start-Sleep -Seconds 10
 
-foreach ($user in $users){
+foreach ($user in $users) {
     write-host "reverting $user.Name ..." -ForegroundColor Cyan
     set-aduser $user.UserPrincipalName.Split("@")[0] -Description $user.Description -Enabled $true
     get-aduser $user.UserPrincipalName.Split("@")[0] | Move-ADObject -TargetPath $user.OU
