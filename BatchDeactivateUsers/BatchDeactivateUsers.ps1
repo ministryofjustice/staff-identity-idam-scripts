@@ -81,7 +81,8 @@ $check = read-host "Are you ready to proceed with re-activation of the above use
 if ($check -ne "YES"){
     write-host "exiting" -ForegroundColor Yellow
     Start-Sleep -seconds 2
-    exit}
+    exit
+  }
 
 write-host "proceeding in 10 seconds... use ctrl+c to abort" -ForegroundColor Cyan
 Start-Sleep -Seconds 10
