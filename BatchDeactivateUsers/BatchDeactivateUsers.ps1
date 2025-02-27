@@ -69,7 +69,8 @@ $backout = read-host "Do you need to backout the change? Type BACKOUT and press 
 if ($backout -ne "BACKOUT"){
     write-host "exiting" -ForegroundColor Yellow
     Start-Sleep -seconds 2
-    exit}
+    exit
+  }
 
 Write-Host "Select the PRE file you wish to revert to" -ForegroundColor Yellow
 $backoutPath = Get-ChildItem $env:userprofile\scripts -Filter *pre* | sort LastWriteTime -Descending | Out-GridView -PassThru | select Name
