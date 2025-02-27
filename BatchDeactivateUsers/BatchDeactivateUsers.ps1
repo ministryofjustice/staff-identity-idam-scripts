@@ -97,5 +97,6 @@ foreach ($user in $users){
 }
 $backoutTaskPost = foreach ($user in $users){
     get-aduser $user.UserPrincipalName.Split("@")[0] -Properties Description | Select Name,UserPrincipalName,Enabled,Description,DistinguishedName,@{n='OU';e={$_.DistinguishedName -replace '^.*?,(?=[A-Z]{2}=)'}}
-    }
+}
+
 $backoutTaskPost | Export-Csv -path $backoutPost -NoTypeInformation
