@@ -36,7 +36,7 @@ $backoutPost = "$env:userprofile\scripts\DeactivateUsersBackoutPost$date.csv"
 
 $preResults = foreach ($user in $users){
     get-aduser -filter 'UserPrincipalName -like $user' -Properties Description | Select Name,UserPrincipalName,Enabled,Description,DistinguishedName,@{n='OU';e={$_.DistinguishedName -replace '^.*?,(?=[A-Z]{2}=)'}}
-    }
+}
 $preResults | Export-Csv -path $outputPre -NoTypeInformation
 
 $preResults | select Name | Out-Host
