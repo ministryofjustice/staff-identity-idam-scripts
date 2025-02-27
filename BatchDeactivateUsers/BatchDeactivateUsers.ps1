@@ -19,10 +19,10 @@ $OUPath = "OU=TO_BE_DELETED,"+$domain.DistinguishedName
 $users = get-content $file
 $date = get-date -Format dd-MM-yyyy-HHmm
 $testpath = Test-Path $env:userprofile\scripts\
-    if ($testpath -ne $true){
+    if ($testpath -ne $true) {
         new-item -Path $env:userprofile -Name scripts -ItemType Directory
         $testpath = Test-Path $env:userprofile\scripts\
-        if ($testpath -ne $true){
+        if ($testpath -ne $true) {
             write-host "failed to create log path, investigate before proceeding" -ForegroundColor Red
             pause
             exit
@@ -34,14 +34,14 @@ $backoutPost = "$env:userprofile\scripts\DeactivateUsersBackoutPost$date.csv"
 
 # --- Start script execution
 
-$preResults = foreach ($user in $users){
+$preResults = foreach ($user in $users) {
     get-aduser -filter 'UserPrincipalName -like $user' -Properties Description | Select Name,UserPrincipalName,Enabled,Description,DistinguishedName,@{n='OU';e={$_.DistinguishedName -replace '^.*?,(?=[A-Z]{2}=)'}}
 }
 $preResults | Export-Csv -path $outputPre -NoTypeInformation
 
 $preResults | select Name | Out-Host
 $check = read-host "Are you ready to proceed with deactivation of the above users? Type YES and press Enter"
-if ($check -ne "YES"){
+if ($check -ne "YES") {
     write-host "exiting" -ForegroundColor Yellow
     Start-Sleep -seconds 2
     exit}
@@ -55,7 +55,7 @@ foreach ($user in $users) {
     get-aduser $user.Split("@")[0] | Move-ADObject -TargetPath $OUPath
 }
 
-$postResults = foreach ($user in $users){
+$postResults = foreach ($user in $users) {
     get-aduser -filter 'UserPrincipalName -like $user' -Properties Description | Select Name,UserPrincipalName,Enabled,Description,DistinguishedName,@{n='OU';e={$_.DistinguishedName -replace '^.*?,(?=[A-Z]{2}=)'}}
 }
 
@@ -80,7 +80,7 @@ $users = import-csv -Path $backoutFile
 
 $users | select Name | Out-Host
 $check = read-host "Are you ready to proceed with re-activation of the above users? Type YES and press Enter"
-if ($check -ne "YES"){
+if ($check -ne "YES") {
     write-host "exiting" -ForegroundColor Yellow
     Start-Sleep -seconds 2
     exit
@@ -95,7 +95,7 @@ foreach ($user in $users) {
     get-aduser $user.UserPrincipalName.Split("@")[0] | Move-ADObject -TargetPath $user.OU
 }
 
-$backoutTaskPost = foreach ($user in $users){
+$backoutTaskPost = foreach ($user in $users) {
     get-aduser $user.UserPrincipalName.Split("@")[0] -Properties Description | Select Name,UserPrincipalName,Enabled,Description,DistinguishedName,@{n='OU';e={$_.DistinguishedName -replace '^.*?,(?=[A-Z]{2}=)'}}
 }
 
