@@ -67,7 +67,7 @@ Pause
 # --- Backout below
 
 $backout = read-host "Do you need to backout the change? Type BACKOUT and press Enter"
-if ($backout -ne "BACKOUT"){
+if ($backout -ne "BACKOUT") {
     write-host "exiting" -ForegroundColor Yellow
     Start-Sleep -seconds 2
     exit
