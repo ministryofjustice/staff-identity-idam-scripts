@@ -95,6 +95,7 @@ foreach ($user in $users){
     set-aduser $user.UserPrincipalName.Split("@")[0] -Description $user.Description -Enabled $true
     get-aduser $user.UserPrincipalName.Split("@")[0] | Move-ADObject -TargetPath $user.OU
 }
+
 $backoutTaskPost = foreach ($user in $users){
     get-aduser $user.UserPrincipalName.Split("@")[0] -Properties Description | Select Name,UserPrincipalName,Enabled,Description,DistinguishedName,@{n='OU';e={$_.DistinguishedName -replace '^.*?,(?=[A-Z]{2}=)'}}
 }
