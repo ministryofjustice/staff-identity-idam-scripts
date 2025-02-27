@@ -49,7 +49,7 @@ if ($check -ne "YES"){
 write-host "proceeding in 10 seconds... use ctrl+c to abort" -ForegroundColor Cyan
 Start-Sleep -Seconds 10
 
-foreach ($user in $users){
+foreach ($user in $users) {
     write-host "deactivating $user.Name ..." -ForegroundColor Cyan
     set-aduser $user.Split("@")[0] -Description "Deactivated - DualRunner" -Enabled $false
     get-aduser $user.Split("@")[0] | Move-ADObject -TargetPath $OUPath
