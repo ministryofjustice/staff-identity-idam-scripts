@@ -36,7 +36,7 @@ function Send-MGMail {
     param (
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
-        [String]$SendFrom = "IDAMTestUser1@devl.justice.gov.uk",
+        [String]$SendFrom,
 
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
