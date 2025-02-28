@@ -14,7 +14,7 @@ The script also exports a PRE and POST report of the targeted users to $env:user
 ### Deactivate users
 
 * Download the script locally / copy into PowerShell ISE or similar
-* Populate the $file variable on line 12 with the path to the file containing your targeted users
+* Populate the `$file` variable on line 12 with the path to the file containing your targeted users
 * Run through the script until line 65, this completes the deactivation
 
 ### Backout / restore users
