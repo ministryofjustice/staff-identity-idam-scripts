@@ -62,7 +62,7 @@ function Connect-MgGraphViaAppReg {
             -Method POST `
             -Body $body
 
-        $token = $connection.access_token
+        $token = $connection.access_token | Out-Null
 
         Write-Verbose "Connecting to Microsoft Graph using the provided Client ID and Secret"
         Connect-MgGraph -AccessToken (ConvertTo-SecureString -String $token -AsPlainText) -ErrorAction 'Stop'
