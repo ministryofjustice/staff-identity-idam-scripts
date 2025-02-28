@@ -18,6 +18,10 @@ param (
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
+    [String]$Tenant,
+
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullOrEmpty()]
     [String]$ToRecipient
 )
 
@@ -55,8 +59,9 @@ try {
 
     $serviceAccountParams = @{
         DisplayName = $SvcAccountDisplayName
-        Department = $Department
+        Department  = $Department
         CompanyName = $CompanyName
+        Tenant      = $Tenant
     }
 
     Write-Verbose "`e[33mEntering Service account creation function`e[0m"
