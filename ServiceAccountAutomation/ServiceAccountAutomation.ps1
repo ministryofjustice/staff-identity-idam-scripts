@@ -30,7 +30,7 @@ try {
 
     Write-Output "`e[33mInstalling Modules`e[0m"
     # Check if the Microsoft.Graph module is installed and install version 2.26.1 if not
-    if (-not (Get-Module -ListAvailable -Name Microsoft.Graph)) {
+    if (-not (Get-Module -ListAvailable -Name Microsoft.Graph | Where-Object { $_.Version -eq [Version] "2.26.1"})) {
         # Module is not installed, install version 2.26.1
         Install-Module -Name Microsoft.Graph -RequiredVersion 2.26.1 -Force -Scope CurrentUser
         Write-Output "`e[32mMicrosoft.Graph version 2.26.1 has been installed.`e[0m"
