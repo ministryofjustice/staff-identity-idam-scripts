@@ -45,17 +45,11 @@ try {
     Import-Module ".\PSHelperFunctions" -Force
     Write-Output "`e[32mPSHelperFunctions has been installed`e[0m"
 
-    
-    $param = @{
-        ClientId = $clientId
-        ClientSecret = $clientSecret
-        TenantId = $tenantId
-    }
 
-    $token = Connect-MgGraphViaAppReg @param
+    # $token = Connect-MgGraphViaAppReg @param
 
-    Write-Output "`e[34mConnecting to Azure via Graph`e[0m"
-    Connect-MgGraphViaAppReg @param
+    # Write-Output "`e[34mConnecting to Azure via Graph`e[0m"
+    # Connect-MgGraphViaAppReg @param
 
     $serviceAccountParams = @{
         DisplayName = $SvcAccountDisplayName
