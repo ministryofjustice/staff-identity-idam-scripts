@@ -23,3 +23,98 @@ The table below should be kept up to date with any additions or removals of scri
 | List all admin roles | Export all the Entra Id admin roles and admin accounts in the tenant | [Link](./ListRoles/list-roles.ps1) |
 | Get user accounts with admin roles | Export a list of all user accounts that have been assigned one or more Entra Id admin roles | [Link](./AdminAccounts/GetAdminAccounts.ps1) |
 | Disable and deleted unused admin accounts | Find all admin accounts and disable them if no recent sign-in activity and delete if disabled for a period of time | [Link](./AdminAccounts/AdminAccountLifecycle.ps1) |
+
+# PSHelperFunctions Module
+
+This module houses reusable functions, which are to be used across other scripts. When writing scripts, if any parts could be used by others in the future. Please split the code into it's own function within PSHelperFunctions\Public. This will save us development time and will keep code consistent.
+
+This module has been developed and tested using [PowerShell 7](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell),
+which is cross-platform and easily installed on
+[Windows](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-windows),
+[Linux](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-linux), and
+[macOS](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-macos).
+
+
+## Usage
+
+Run the following commands to install and use this PowerShell module:
+
+1. Clone this repo:
+
+    ```powershell
+    git clone git@github.com:ministryofjustice/staff-identity-idam-scripts.git
+    ```
+
+2. Import the module (from the root of the cloned repo):
+
+    ```powershell
+    Import-Module "\staff-identity-idam-scripts/PSHelperFunctions.psd1" -Verbose -Force
+    ```
+
+3. List available functions:
+
+    ```powershell
+    Get-Command -Module "PSHelperFunctions"
+
+    CommandType     Name                                               Version    Source
+    -----------     ----                                               -------    ------
+    Function        Connect-MgGraphViaAppReg                           1.0.0      PSHelperFunctions
+    ```
+
+1. Show help for a specific function, eg:
+
+    ```powershell
+    # show generic help
+    Get-Help "Connect-MgGraphViaAppReg"
+
+    # show examples
+    Get-Help "Connect-MgGraphViaAppReg" -Examples
+
+    # show full / detailed help
+    Get-Help "Connect-MgGraphViaAppReg" -Full
+    Get-Help "Connect-MgGraphViaAppReg" -Detailed
+    ```
+
+## Functions
+
+- [PSHelperFunctions](#pshelperfunctions)
+  - [Usage](#usage)
+  - [Functions](#functions)
+    -[Connect-MgGraphViaAppReg](https://github.com/ministryofjustice/staff-identity-idam-scripts/tree/main/PSHelperFunctions/Public/Connect-MgGraphViaAppReg.ps1)
+
+The current function summaries are shown below, but you can view full help by importing the module then running:
+
+```powershell
+Get-Help "<FUNCTION-NAME>" -Full
+```
+
+### Connect-MgGraphViaAppReg
+
+The `Connect-MgGraphViaAppReg` function connects to Microsoft Graph (MG) by obtaining an access token
+using application registration with client credentials flow. This function is typically used in scenarios
+where you want to automate tasks that require accessing Microsoft Graph resources without user interaction.
+
+## Example
+
+```powershell
+# Import this module
+ Import-Module "\staff-identity-idam-scripts/PSHelperFunctions.psd1" -Verbose -Force
+
+
+# Vars
+$clientId = ""
+$clientSecret = ""
+$tenantId = ""
+
+$param = @{
+    ClientId = $clientId
+    ClientSecret = $clientSecret
+    TenantId = $tenantId
+}
+
+Connect-MgGraphViaAppReg @param
+
+# Test obtaining all users
+Get-MgUser -All | Format-List  ID, DisplayName, Mail, UserPrincipalName
+```
+
