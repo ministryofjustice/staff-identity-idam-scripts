@@ -67,18 +67,30 @@ param(
     [Parameter(Mandatory=$true, ParameterSetName="DisableAndDelete")]
     [Parameter(Mandatory=$true, ParameterSetName="UndoChanges")]
     [ValidateSet("PROD", "NLE", "DEVL")]
-    [string]$Tenant
+    [string]$Tenant,
+    [Parameter(ParameterSetName="DisableAccounts")]
+    [Parameter(ParameterSetName="DeleteAccounts")]
+    [Parameter(ParameterSetName="DisableAndDelete")]
+    [Parameter(ParameterSetName="UndoChanges")]
+    [switch]$WhatIf
 )
 
 $workingDir = $MyInvocation.MyCommand.Path
-$index = $workingDir.LastIndexOf('\')
+$directorySeparator = '\'
+$index = $workingDir.LastIndexOf($directorySeparator)
+if ($index -eq -1) {
+    $directorySeparator = '/'
+}
+
+$index = $workingDir.LastIndexOf($directorySeparator)
+
 $workingDir = $workingDir.Substring(0, $index)
 $dateTime = (Get-Date -Format s) -replace "[\-T\:]",""
-$logPath = "$workingDir\AdminAccountLifecycle-$dateTime.log"
-$actionsLogPath = "$workingDir\AdminAccountLifecycleActions-$dateTime.csv"
-$disabledUserPath = "$workingDir\AdminAccountLifecycleDisabledUsers.csv"
-$workingSetPath = "$workingDir\AdminAccountLifecycleWorkingSet-$dateTime.csv"
-$archivePath = "$workingDir\AdminAccountLifecycle-$dateTime.zip"
+$logPath = "$workingDir$($directorySeparator)AdminAccountLifecycle-$dateTime.log"
+$actionsLogPath = "$workingDir$($directorySeparator)AdminAccountLifecycleActions-$dateTime.csv"
+$disabledUserPath = "$workingDir$($directorySeparator)AdminAccountLifecycleDisabledUsers.csv"
+$workingSetPath = "$workingDir$($directorySeparator)AdminAccountLifecycleWorkingSet-$dateTime.csv"
+$archivePath = "$workingDir$($directorySeparator)AdminAccountLifecycle-$dateTime.zip"
 
 $lastSignInDate = (Get-Date).AddDays(-730)
 if ($Tenant -eq "PROD") {
@@ -88,6 +100,7 @@ if ($Tenant -eq "PROD") {
 $disabledDateTime = (Get-Date).AddDays(-60)
 $createdDateTime = (Get-Date).AddDays(-14)
 $disabledUsers = @{}
+$globalAdmins = @{}
 
 function Write-LogFile {
     param(
@@ -105,7 +118,7 @@ function Write-LogFile {
     try {
         $line | Out-File $Path -Append -ErrorAction Stop
     } catch {
-        "$line [$($_.Exception.Message)]"
+        Write-Host "$line [$($_.Exception.Message)]"
     }
 }
 
@@ -152,18 +165,28 @@ function Undo-Change {
     foreach ($user in $users) {
         if ($user.Action -eq "Disabled") {
             try {
-                Update-MgUser -UserId $user.Id -AccountEnabled -ErrorAction Stop
-                $disabledUsers.Remove($user.Id)
-                Write-ActionLog -Action Enabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
-                Write-LogFile -Path $logPath -Type Information -Message "Enabled account $($user.UserPrincipalName)"
+                if ($WhatIf.IsPresent) {
+                    Update-MgUser -UserId $user.Id -AccountEnabled:$true -ErrorAction Stop -WhatIf
+                    Write-LogFile -Path $logPath -Type Information -Message "Would have enabled account $($user.UserPrincipalName), but the WhatIf parameter was specified and the account is still disabled"
+                } else {
+                    Update-MgUser -UserId $user.Id -AccountEnabled:$true -ErrorAction Stop
+                    $disabledUsers.Remove($user.Id)
+                    Write-ActionLog -Action Enabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                    Write-LogFile -Path $logPath -Type Information -Message "Enabled account $($user.UserPrincipalName)"
+                }
             } catch {
                 Write-LogFile -Path $logPath -Type Error -Message "Failed to enable account $($user.UserPrincipalName). $($_.Exception.Message)"
             }
         } elseif ($user.Action -eq "Deleted") {
             try {
-                Restore-MgDirectoryDeletedItem -DirectoryObjectId $user.Id -ErrorAction Stop
-                Write-ActionLog -Action Restored -Id $user.Id -UserPrincipalName $user.UserPrincipalName
-                Write-LogFile -Path $logPath -Type Information -Message "Restored deleted account $($user.UserPrincipalName)"
+                if ($WhatIf.IsPresent) {
+                    Restore-MgDirectoryDeletedItem -DirectoryObjectId $user.Id -ErrorAction Stop -WhatIf
+                    Write-LogFile -Path $logPath -Type Information -Message "Would have restored deleted account $($user.UserPrincipalName), but the WhatIf parameter was specified"
+                } else {
+                    Restore-MgDirectoryDeletedItem -DirectoryObjectId $user.Id -ErrorAction Stop | Out-Null
+                    Write-ActionLog -Action Restored -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                    Write-LogFile -Path $logPath -Type Information -Message "Restored deleted account $($user.UserPrincipalName)"
+                }
             } catch {
                 Write-LogFile -Path $logPath -Type Error -Message "Failed to restore deleted user $($user.UserPrincipalName). $($_.Exception.Message)"
             }
@@ -189,7 +212,7 @@ function Get-EntraIdAdminAccount {
 
         Write-Progress -Activity "Entra ID Roles" -Status "Role $roleCount of $($roles.Count)" -PercentComplete (($roleCount / $roles.Count) * 100) -CurrentOperation $role.DisplayName -Id 0
 
-        if ($role.DisplayName -eq "Guest User" -or $role.DisplayName -eq "User") {
+        if ($role.DisplayName -eq "Guest User" -or $role.DisplayName -eq "User" -or $role.DisplayName -eq "Directory Synchronization Accounts") {
             continue
         }
 
@@ -215,6 +238,9 @@ function Get-EntraIdAdminAccount {
             if ($adminUsers.ContainsKey($assignment.PrincipalId) -eq $false) {
                 try {
                     $user = Get-MgUser -UserId $assignment.PrincipalId -Property DisplayName,UserPrincipalName,Id,SignInActivity,CreatedDateTime,AccountEnabled,OnPremisesSyncEnabled -ErrorAction Stop | Select-Object Id,DisplayName,AccountEnabled,UserPrincipalName,OnPremisesSyncEnabled,@{Name="LastSignInDateTime"; Expression={ $_.SignInActivity.LastSignInDateTime }},@{Name="LastSuccessfulSignInDateTime"; Expression={ $_.SignInActivity.LastSuccessfulSignInDateTime }},@{Name="LastNonInteractiveSignInDateTime"; Expression={ $_.SignInActivity.LastNonInteractiveSignInDateTime }},CreatedDateTime
+                    if ($role.DisplayName -eq "Global Administrator") {
+                        $globalAdmins[$assignment.PrincipalId] = $user
+                    }
                 } catch {
                     Write-LogFile -Path $logPath -Type Warning -Message "Failed to get user $($assignment.PrincipalId), could it be a group? $($_.Exception.Message)"
                 }
@@ -257,6 +283,9 @@ function Get-EntraIdAdminAccount {
 
                             try {
                                 $user = Get-MgUser -UserId $member.Id -Property DisplayName,UserPrincipalName,Id,SignInActivity,CreatedDateTime,AccountEnabled,OnPremisesSyncEnabled -ErrorAction Stop | Select-Object Id,DisplayName,AccountEnabled,UserPrincipalName,OnPremisesSyncEnabled,@{Name="LastSignInDateTime"; Expression={ $_.SignInActivity.LastSignInDateTime }},@{Name="LastSuccessfulSignInDateTime"; Expression={ $_.SignInActivity.LastSuccessfulSignInDateTime }},@{Name="LastNonInteractiveSignInDateTime"; Expression={ $_.SignInActivity.LastNonInteractiveSignInDateTime }},CreatedDateTime
+                                if ($role.DisplayName -eq "Global Administrator") {
+                                    $globalAdmins[$assignment.PrincipalId] = $user
+                                }
                             } catch {
                                 Write-LogFile -Path $logPath -Type Error -Message "Failed to get user $($member.Id) in group $($group.DisplayName). $($_.Exception.Message)"
                             }
@@ -296,13 +325,17 @@ function Get-EntraIdAdminAccount {
 
 try {
     $scopes = "User.Read.All","AuditLog.Read.All"
-    if ($Disable.IsPresent -or $Delete.IsPresent) {
-        $scopes = "User.ReadWrite.All","AuditLog.Read.All"
+    if ($Disable.IsPresent -and $Delete.IsPresent) {
+        $scopes = "User.ReadWrite.All","User.EnableDisableAccount.All","AuditLog.Read.All","Directory.AccessAsUser.All"
+    } elseif ($Disable.IsPresent -and $Delete.IsPresent -eq $false) {
+        $scopes = "User.ReadWrite.All","User.EnableDisableAccount.All","AuditLog.Read.All"
+    } elseif ($Delete.IsPresent -and $Disable.IsPresent -eq $false) {
+        $scopes = "User.ReadWrite.All","AuditLog.Read.All","Directory.AccessAsUser.All"
     } elseif ($Undo.IsPresent) {
-        $scopes = "User.ReadWrite.All"
+        $scopes = "User.ReadWrite.All","User.EnableDisableAccount.All","Directory.AccessAsUser.All"
     }
 
-    $context = Get-MgContext -ErrorAction Stop
+    context = Get-MgContext -ErrorAction Stop
     if ($null -ne $context) {
         if ($Tenant -eq "PROD") {
             if ($context.Account -notmatch "^.+@justiceuk\.onmicrosoft\.com$") {
@@ -326,32 +359,31 @@ try {
 }
 
 $users = @()
-$users += Get-EntraIdAdminAccount
 
 if ((Test-Path $disabledUserPath) -eq $true) {
+    try {
+        $importedUsers = Import-Csv $disabledUserPath -ErrorAction Stop
+    } catch {
+        Write-LogFile -Path $logPath -Type Error -Message "Failed to import disabled users from '$disabledUserPath'. $($_.Exception.Message)"
+    }
+    
+    $importedUsers | ForEach-Object {
         try {
-            $importedUsers = Import-Csv $disabledUserPath -ErrorAction Stop
+            $removeUserFromList = $false
+            $user = Get-MgUser -UserId $_.Id -Property Id,AccountEnabled -ErrorAction Stop
         } catch {
-            Write-LogFile -Path $logPath -Type Error -Message "Failed to import disabled users from '$disabledUserPath'. $($_.Exception.Message)"
+            if ($_.Exception.Message -like "[Request_ResourceNotFound]*") {
+                $removeUserFromList = $true
+                Write-LogFile -Path $logPath -Type Warning -Message "User not found removing it from the disabled user list. $($_.Exception.Message)"
+            } else {
+                Write-LogFile -Path $logPath -Type Error -Message "Issues encountered while getting the user from Entra Id. $($_.Exception.Message)"
+                continue
+            }
         }
-
-        $importedUsers | ForEach-Object {
-            try {
-                $removeUserFromList = $false
-                $user = Get-MgUser -UserId $_.Id -Property Id,AccountEnabled -ErrorAction Stop
-            } catch {
-                if ($_.Exception.Message -like "[Request_ResourceNotFound]*") {
-                    $removeUserFromList = $true
-                    Write-LogFile -Path $logPath -Type Warning -Message "User not found removing it from the disabled user list. $($_.Exception.Message)"
-                } else {
-                    Write-LogFile -Path $logPath -Type Error -Message "Issues encountered while getting the user from Entra Id. $($_.Exception.Message)"
-                    continue
-                }
-            }
-
-            if ($disabledUsers.ContainsKey($user.Id) -eq $false -and $removeUserFromList -eq $false -and $user.AccountEnabled -ne $true) {
-                $disabledUsers.Add($user.Id, $_)
-            }
+        
+        if ($disabledUsers.ContainsKey($user.Id) -eq $false -and $removeUserFromList -eq $false -and $user.AccountEnabled -ne $true) {
+            $disabledUser = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = [DateTime]$_.DateDisabled; Id = $_.Id; UserPrincipalName = $_.UserPrincipalName; }
+            $disabledUsers.Add($user.Id, $disabledUser)
         }
     }
 }
@@ -359,6 +391,7 @@ if ((Test-Path $disabledUserPath) -eq $true) {
 if ($Undo.IsPresent) {
     Undo-Change -Path $Path
 } else {
+    $users += Get-EntraIdAdminAccount
     $userCount = 0
 
     foreach ($user in $users) {
@@ -366,8 +399,8 @@ if ($Undo.IsPresent) {
         
         Write-Progress -Activity "Processing admin accounts" -Status "User $userCount of $($users.Count)" -PercentComplete (($userCount / $users.Count) * 100) -CurrentOperation $user.DisplayName -Id 0
 
-        if ($user.UserPrincipalName -match "^acc[12](prod@justiceuk|nle@testjusticeuk|devl@mojodevl)\.onmicrosoft\.com$") {
-            Write-LogFile -Path $logPath -Type Information -Message "Skipping $($user.UserPrincipalName) as account is a Global Admin break glass account"
+        if ($globalAdmins.ContainsKey($user.Id) -eq $true) {
+            Write-LogFile -Path $logPath -Type Information -Message "Skipping $($user.UserPrincipalName) as account is a Global Admin account"
             continue
         }
 
@@ -407,22 +440,25 @@ if ($Undo.IsPresent) {
             if ($user.AccountEnabled -eq $true) {
                 if ($null -eq $user.OnPremisesSyncEnabled -or $user.OnPremisesSyncEnabled -eq $false) {
                     if ($Disable.IsPresent) {
-                        $parameters = @{
-                            UserId = $user.Id;
-                            AccountEnabled = $true;
-                            ErrorAction = Stop;
-                        }
-
                         if ($WhatIf.IsPresent) {
-                            $parameters.Add("WhatIf", $true)
+                            Update-MgUser -UserId $user.Id -AccountEnabled:$false -ErrorAction Stop -WhatIf
+                            Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) would have been disabled, but WhatIf parameter was specified"
+                        } else {
+                            Update-MgUser -UserId $user.Id -AccountEnabled:$false -ErrorAction Stop
+                            $updatedUser = $null
+                            $updatedUser = Get-MgUser -UserId $user.Id -Property Id,UserPrincipalName,AccountEnabled -ErrorAction SilentlyContinue
+                            if ($null -ne $updatedUser) {
+                                if ($updatedUser.AccountEnabled -eq $false) {
+                                    $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
+                                    Write-ActionLog -Action Disabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                                    Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) has been disabled"
+                                } else {
+                                    Write-LogFile -Path $logPath -Type Error -Message "User account $($user.UserPrincipalName) is still enabled"
+                                }
+                            } else {
+                                Write-LogFile -Path $logPath -Type Error -Message "Failed to check user account $($user.UserPrincipalName) has been disabled"
+                            }
                         }
-
-                        Update-MgUser @parameters #-UserId $user.Id -AccountEnabled -ErrorAction Stop
-
-                        $disabledUsers[$user.Id] = New-Object -TypeName PSCustomObject -Property @{ DateDisabled = Get-Date; Id = $user.Id; UserPrincipalName = $user.UserPrincipalName; } -ErrorAction Stop
-
-                        Write-ActionLog -Action Disabled -Id $user.Id -UserPrincipalName $user.UserPrincipalName
-                        Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) has been disabled"
                     } else {
                         Write-LogFile -Path $logPath -Type Information -Message "User account $($user.UserPrincipalName) would have been disabled, but disable switch has not been used"
                     }
@@ -445,19 +481,15 @@ if ($Undo.IsPresent) {
             if ($disabledUsers[$user.Id].DateDisabled -lt $disabledDateTime) {
                 try {
                     if ($Delete.IsPresent) {
-                        $parameters = @{
-                            UserId = $user.Id;
-                            ErrorAction = Stop;
-                        }
-
                         if ($WhatIf.IsPresent) {
-                            $parameters.Add("WhatIf", $true)
+                            Remove-MgUser -UserId $user.Id -ErrorAction Stop -WhatIf
+                            Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) would have been deleted, but WhatIf parameter was specified"
+                        } else {
+                            Remove-MgUser -UserId $user.Id -ErrorAction Stop
+                            $disabledUsers.Remove($user.Id)
+                            Write-ActionLog -Action Deleted -Id $user.Id -UserPrincipalName $user.UserPrincipalName
+                            Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) has been deleted"
                         }
-                        
-                        Remove-MgUser @parameters #-UserId $user.Id -ErrorAction Stop -WhatIf
-                        $disabledUsers.Remove($user.Id)
-                        Write-ActionLog -Action Deleted -Id $user.Id -UserPrincipalName $user.UserPrincipalName
-                        Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) has been deleted"
                     } else {
                         Write-LogFile -Path $logPath -Type Information -Message "User $($user.UserPrincipalName) would have been deleted, if the delete switch had been used"
                     }
