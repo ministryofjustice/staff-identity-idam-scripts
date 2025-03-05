@@ -3,7 +3,8 @@
     A script to manage the lifecycle of Entra Id admin accounts.
 
     .DESCRIPTION
-    The script will disable admin accounts not signed in for the 365 days for live or 730 days for NLE and DEVL.
+    The script will:
+    Disable admin accounts not signed in for the 365 days for live or 730 days for NLE and DEVL.
     Delete accounts that have been disabled by the script for 60 days.
     Accounts created within 14 days of the script running will not be disabled or deleted, if no sign-in activity has been found on the account.
     Using the Undo parameter will allow the script to reverse the last set of changes provided by the Path parameter.
