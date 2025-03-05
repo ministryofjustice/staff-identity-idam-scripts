@@ -5,4 +5,7 @@ SP/*.json
 SP/*.csv
 AllEnabledUsers/*.json
 AllEnabledUsers/*.csv
-.vscode
+AdminAccounts/*.csv
+AdminAccounts/*.log
+AdminAccounts/*.zip
+.vscode/
