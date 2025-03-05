@@ -335,7 +335,7 @@ try {
         $scopes = "User.ReadWrite.All","User.EnableDisableAccount.All","Directory.AccessAsUser.All"
     }
 
-    context = Get-MgContext -ErrorAction Stop
+    $context = Get-MgContext -ErrorAction Stop
     if ($null -ne $context) {
         if ($Tenant -eq "PROD") {
             if ($context.Account -notmatch "^.+@justiceuk\.onmicrosoft\.com$") {
