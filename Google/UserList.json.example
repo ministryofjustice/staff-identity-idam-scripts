@@ -1,0 +1,14 @@
+[
+    {
+        "jdeprefix": "testuser1",
+        "jdesuffix": "xxx.digital.justice.gov.uk",
+        "jeprefix": "testuser",
+        "jesuffix": "justice.gov.uk"
+    },
+    {
+        "jdeprefix": "testuser2",
+        "jdesuffix": "xxx.digital.justice.gov.uk",
+        "jeprefix": "testuser3",
+        "jesuffix": "justice.gov.uk"
+    }
+]
