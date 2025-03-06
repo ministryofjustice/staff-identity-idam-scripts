@@ -8,4 +8,6 @@ AllEnabledUsers/*.csv
 AdminAccounts/*.csv
 AdminAccounts/*.log
 AdminAccounts/*.zip
-.vscode/
+Google/*.json
+Google/*.csv
+.vscode
