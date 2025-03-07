@@ -17,7 +17,7 @@ function AppendEntryFailed() {
 Connect-Entra -Scopes 'Group.ReadWrite.All', "Directory.Read.All", "User.Read.All"
 
 # Get Entra Group by Display Name
-$group = Get-EntraGroup -Filter "displayName eq 'GoogleTestGroup'"
+$group = Get-EntraGroup -Filter "displayName eq 'google-cloud-allowed'"
 
 # Go through list of user accounts to be added
 Foreach ($user in $UserList) {
@@ -34,10 +34,10 @@ Foreach ($user in $UserList) {
         
         # Add Entra user to Group
         Add-EntraGroupMember -GroupId $group.Id -MemberId $user.Id
-        Write-Host("Added " + $JusticeEmail + " to GoogleTestGroup")
+        Write-Host("Added " + $JusticeEmail + " to google-cloud-allowed")
     
         #Remove-EntraGroupMember -GroupId $group.Id -MemberId $user.Id
-        #Write-Host("Removed " + $JusticeEmail + " to GoogleTestGroup")
+        #Write-Host("Removed " + $JusticeEmail + " to google-cloud-allowed")
 
         # Record record added
         $result = [PSCustomObject][ordered]@{
@@ -50,7 +50,7 @@ Foreach ($user in $UserList) {
         # Write record to audit log
         AppendEntry
     } catch {
-        Write-Host("Failed " + $JusticeEmail + " to GoogleTestGroup")
+        Write-Host("Failed " + $JusticeEmail + " to google-cloud-allowed")
 
         # Record record added
         $result = [PSCustomObject][ordered]@{
