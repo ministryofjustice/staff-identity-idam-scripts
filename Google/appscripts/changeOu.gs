@@ -12,7 +12,7 @@ function changeOu() {
 
       let user = getUser(justiceEmailAddress)
       user.orgUnitPath = ORG_UNIT_PATH;
-      //user = AdminDirectory.Users.update(user, user.primaryEmail);
+      user = AdminDirectory.Users.update(user, user.primaryEmail);
       AddLog(justiceEmailAddress, justiceDigitalEmailAddress, `User ${justiceEmailAddress} OU Updated`, "changeOu", "log");
 
     } catch (err) {
