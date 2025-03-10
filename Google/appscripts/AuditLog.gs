@@ -3,7 +3,9 @@
  * Google Sheet.
  */
 
-let sheet = SpreadsheetApp.create('IdentityMigration-AuditLog').getActiveSheet();
+const now = new Date();
+const formattedDate = now.toISOString();
+let sheet = SpreadsheetApp.create(`IdentityMigration-AuditLog_${formattedDate}`).getActiveSheet();
 sheet.appendRow(['Justice Digital Email', 'Justice Email', 'Message', 'Function Name', 'Log Type']);
 let data = [];
 
