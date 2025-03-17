@@ -26,26 +26,25 @@ try {
   exit
 }
 
-$count = 0
 $x = @()
 
 foreach ($role in $aadRoles) {
   if ($role.displayname -ne "Guest User" -and $role.displayname -ne "User") { 
 
    write-host -backgroundcolor red $role.displayname
-   $eligibleAssignments=Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance -Filter "roleDefinitionId eq '$($role.id)'"
-   $activeAssignments = Get-MgRoleManagementDirectoryRoleAssignmentScheduleInstance  -Filter "roleDefinitionId eq '$($role.id)'"
-   $eligibleAssignments | ForEach-Object {  $_ | Add-Member -NotePropertyName "AssType" -NotePropertyValue "eligible"}
-   $activeAssignments | ForEach-Object {  $_ | Add-Member -NotePropertyName "AssType" -NotePropertyValue "active"}
+   $eligibleAssignments = Get-MgRoleManagementDirectoryRoleEligibilityScheduleInstance -Filter "roleDefinitionId eq '$($role.id)'" -All
+   $activeAssignments = Get-MgRoleManagementDirectoryRoleAssignmentScheduleInstance  -Filter "roleDefinitionId eq '$($role.id)'" -All
+   $eligibleAssignments | ForEach-Object {  $_ | Add-Member -NotePropertyName "AssType" -NotePropertyValue "Eligible"}
+   $activeAssignments | ForEach-Object {  $_ | Add-Member -NotePropertyName "AssType" -NotePropertyValue "Active"}
 
    $allassignments=@()
-   if ($activeAssignments -ne $null )   { $allassignments+=$activeAssignments}
-   if ($eligibleAssignments -ne $null ) { $allassignments+=$eligibleAssignments }
+   if ($null -ne $activeAssignments)   { $allassignments+=$activeAssignments}
+   if ($null -ne $eligibleAssignments) { $allassignments+=$eligibleAssignments }
 
    foreach ($usr in $allAssignments) {
      $user = $null
      $user = Get-MgUser -userid $usr.principalid -erroraction 'silentlycontinue'
-     if ($user -ne $null) {
+     if ($null -ne $user) {
        $username=$user.displayname
        $userprin=$user.UserPrincipalName
        write-host $role.displayname   $usr.asstype  $username      $userprin   $usr.MemberType      $usr.StartDateTime     $usr.EndDateTime 
@@ -55,11 +54,18 @@ foreach ($role in $aadRoles) {
        $obj|add-member -MemberType "NoteProperty" -Name Role -value $role.displayname 
        $obj|add-member -MemberType "NoteProperty" -Name Alloc -value $usr.asstype 
        $obj|add-member -MemberType "NoteProperty" -Name Name -value $username      
+       $obj|add-member -MemberType "NoteProperty" -Name Type -value "User"
        $obj|add-member -MemberType "NoteProperty" -Name UserPrincipal -value $userprin    
        $obj|add-member -MemberType "NoteProperty" -Name MemberType -value $usr.MemberType
+       $obj|Add-Member -MemberType "NoteProperty" -Name AssignmentType -Value $usr.AssignmentType
        $obj|add-member -MemberType "NoteProperty" -Name StartDate -value $usr.StartDateTime
        $obj|add-member -MemberType "NoteProperty" -Name EndDate -value $usr.EndDateTime
+       $obj|Add-Member -MemberType "NoteProperty" -Name ProvidedBy -Value "Assignment"
        $obj|Add-Member -MemberType "NoteProperty" -Name GroupName -Value ""
+
+       if ($null -ne $usr.EndDateTime -and $null -ne $usr.StartDateTime -and $usr.EndDateTime -le $usr.StartDateTime.AddHours(8)) {
+        $obj.ProvidedBy = "Activation"
+       }
        $x+=$obj
 
      } else {
@@ -75,10 +81,13 @@ foreach ($role in $aadRoles) {
            $obj|add-member -MemberType "NoteProperty" -Name Role -value $role.displayname 
            $obj|add-member -MemberType "NoteProperty" -Name Alloc -value $usr.asstype 
            $obj|add-member -MemberType "NoteProperty" -Name Name -value $username      
+           $obj|add-member -MemberType "NoteProperty" -Name Type -value "Group"
            $obj|add-member -MemberType "NoteProperty" -Name UserPrincipal -value $userprin    
            $obj|add-member -MemberType "NoteProperty" -Name MemberType -value $usr.MemberType
+           $obj|Add-Member -MemberType "NoteProperty" -Name AssignmentType -Value $usr.AssignmentType
            $obj|add-member -MemberType "NoteProperty" -Name StartDate -value $usr.StartDateTime
            $obj|add-member -MemberType "NoteProperty" -Name EndDate -value $usr.EndDateTime 
+           $obj|Add-Member -MemberType "NoteProperty" -Name ProvidedBy -Value "Group Assignment"
            $obj|Add-Member -MemberType "NoteProperty" -Name GroupName -Value $group.DisplayName
            $x+=$obj
 
@@ -97,10 +106,13 @@ foreach ($role in $aadRoles) {
                    $obj|add-member -MemberType "NoteProperty" -Name Role -value $role.displayname 
                    $obj|add-member -MemberType "NoteProperty" -Name Alloc -value $usr.asstype 
                    $obj|add-member -MemberType "NoteProperty" -Name Name -value $username      
+                   $obj|add-member -MemberType "NoteProperty" -Name Type -value "User"
                    $obj|add-member -MemberType "NoteProperty" -Name UserPrincipal -value $userprin    
                    $obj|add-member -MemberType "NoteProperty" -Name MemberType -value $usr.MemberType
+                   $obj|Add-Member -MemberType "NoteProperty" -Name AssignmentType -Value $usr.AssignmentType
                    $obj|add-member -MemberType "NoteProperty" -Name StartDate -value $usr.StartDateTime
                    $obj|add-member -MemberType "NoteProperty" -Name EndDate -value $usr.EndDateTime 
+                   $obj|Add-Member -MemberType "NoteProperty" -Name ProvidedBy -Value "Group Assignment"
                    $obj|Add-Member -MemberType "NoteProperty" -Name GroupName -Value $group.DisplayName
                    $x+=$obj
                }

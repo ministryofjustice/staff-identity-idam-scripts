@@ -221,7 +221,7 @@ function Get-EntraIdAdminAccount {
         $assignmentCount = 0
 
         try {
-            $assignments += Get-MgRoleManagementDirectoryRoleAssignment -Filter "roleDefinitionId eq '$($role.Id)'" -ErrorAction Stop
+            $assignments += Get-MgRoleManagementDirectoryRoleAssignment -Filter "roleDefinitionId eq '$($role.Id)'" -All -ErrorAction Stop
         } catch {
             Write-LogFile -Path $logPath -Type Error -Message "Failed to get role assignments for $($role.DisplayName). $($_.Exception.Message)"
             continue
@@ -269,7 +269,7 @@ function Get-EntraIdAdminAccount {
                     $memberCount = 0
                                         
                     try {
-                        $members += Get-MgGroupMember -GroupId $assignment.PrincipalId -ErrorAction Stop
+                        $members += Get-MgGroupMember -GroupId $assignment.PrincipalId -All -ErrorAction Stop
                     } catch {
                         Write-LogFile -Path $logPath -Type Error -Message "Failed to get group members for $($group.DisplayName) - $($assignment.PrincipalId). $($_.Exception.Message)"
                     }
