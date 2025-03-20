@@ -1,4 +1,3 @@
-
 <#
     .SYNOPSIS
     A script to compare job title and department from a csv to that stored in Entra
