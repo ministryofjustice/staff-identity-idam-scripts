@@ -24,7 +24,7 @@ $entraUsers = Get-MgUser -All -Property UserPrincipalName,JobTitle,Department | 
 # Create a list to store comparison results
 $comparisonResults = @()
 
-# Compare job titles
+# Compare job titles and department
 foreach ($csvUser in $csvUsers) {
     $entraUser = $entraUsers | Where-Object { $_.UserPrincipalName -eq $csvUser.UserPrincipalName }
     if ($entraUser) {
