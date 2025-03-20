@@ -23,10 +23,17 @@ $entraUsers = Get-MgUser -All -Property UserPrincipalName,JobTitle,Department | 
 
 # Create a list to store comparison results
 $comparisonResults = @()
+$count = 1
 
 # Compare job titles and department
 foreach ($csvUser in $csvUsers) {
-    $entraUser = $entraUsers | Where-Object { $_.UserPrincipalName -eq $csvUser.UserPrincipalName }
+    Write-Host "Currently on user [$count/$($csvUsers.Count)]"
+    $count++
+
+    $entraUser = $null
+    $user = $csvUser.UserPrincipalName
+    $entraUser = Get-MgUser -filter “userPrincipalName eq '$user'” -Property UserPrincipalName,JobTitle,Department | select UserPrincipalName,JobTitle,Department
+
     if ($entraUser) {
         $comparisonResults += [PSCustomObject]@{
             UserPrincipalName = $csvUser.UserPrincipalName
