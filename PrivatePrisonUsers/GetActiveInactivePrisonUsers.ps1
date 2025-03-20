@@ -45,6 +45,7 @@ $activeUsers = @()
 $inactiveUsers = @()
 $groupNames = "MoJO-G-Users-AVD-Hostpool01","MoJO-G-Users-AVD-Hostpool02","MoJO-G-Users-AVD-Hostpool03","DELG-MoJO-G-FiveWells-AVD-Access"
 $groupMembers = @()
+$count = 1
 
 try {
     $users += Import-Csv $Path -ErrorAction Stop
@@ -67,7 +68,9 @@ foreach ($user in $users) {
     $privatePrisonUser = $false
 
     try {
-        $account = Get-MgUser -Filter "userPrincipalName eq '$($user.UserPrincipalName)'" -Property Id,DisplayName,GivenName,Surname,UserPrincipalName,SignInActivity,AccountEnabled -ErrorAction Stop
+        Write-Host "Currently on user [$count/$($users.Count)]"
+        $count++
+        $account = Get-MgUser -Filter "userPrincipalName eq '$($user.UserPrincipalName -replace "'","''")'" -Property Id,DisplayName,GivenName,Surname,UserPrincipalName,SignInActivity,AccountEnabled -ErrorAction Stop
     } catch {
         "Failed to get $($user.UserPrincipalName). $($_.Exception.Message)"
         continue
