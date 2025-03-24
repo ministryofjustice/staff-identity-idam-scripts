@@ -1,6 +1,6 @@
 Connect-Entra -Scopes "Application.Read.All"
 
-$expirationThreshold = (Get-Date).AddDays(1)
+$expirationThreshold = (Get-Date)
 $applicationList = Get-EntraApplication -All
 $clientSecretApps = $applicationList | Where-Object {$_.passwordCredentials}
 $applicationsWithNoOwners = 0
