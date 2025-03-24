@@ -13,11 +13,11 @@ $testpath = Test-Path $env:userprofile\scripts\
 # --- Start variables
 $Users = Import-Csv -Path \path\to\file.csv
 # Change these next two as required
-$companyName = "Service Transformation Group"
-$officeLocation = "Justice Digital|Digital"
-$date = get-date -Format dd-MM-yyyy-HHmm
-$outputPre = "$env:userprofile\scripts\AdjustUsersPre$date.csv"
-$outputPost = "$env:userprofile\scripts\AdjustUsersPost$date.csv"
+$COMPANY_NAME = "Service Transformation Group"
+$OFFICE_LOCATION = "Justice Digital|Digital"
+$DATE = get-date -Format dd-MM-yyyy-HHmm
+$OUTPUT_PRE = "$env:userprofile\scripts\AdjustUsersPre$DATE.csv"
+$OUTPUT_POST = "$env:userprofile\scripts\AdjustUsersPost$DATE.csv"
 
 # --- Start script execution
 
@@ -26,7 +26,7 @@ $preResults = foreach ($user in $users) {
     $upn = $user.UserPrincipalName
     Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company | select Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company
 }
-$preResults | Export-Csv -path $outputPre -NoTypeInformation
+$preResults | Export-Csv -path $OUTPUT_PRE -NoTypeInformation
 
 # --- Make changes
 foreach ($user in $Users) {
@@ -49,8 +49,8 @@ foreach ($user in $Users) {
         }
     }
 
-    Write-Host "Setting Company and Office to $companyName and $officeLocation" -ForegroundColor Cyan
-    Set-ADUser $adUser.SamAccountName -Company $companyName -Office $officeLocation
+    Write-Host "Setting Company and Office to $COMPANY_NAME and $OFFICE_LOCATION" -ForegroundColor Cyan
+    Set-ADUser $adUser.SamAccountName -Company $COMPANY_NAME -Office $OFFICE_LOCATION
 }
 
 # --- Collect post changes data
@@ -58,4 +58,4 @@ $postResults = foreach ($user in $users) {
     $upn = $user.UserPrincipalName
     Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company | select Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company
 }
-$postResults | Export-Csv -path $outputPost -NoTypeInformation
+$postResults | Export-Csv -path $OUTPUT_POST -NoTypeInformation
