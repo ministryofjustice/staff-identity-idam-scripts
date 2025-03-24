@@ -11,7 +11,7 @@ $testpath = Test-Path $env:userprofile\scripts\
         }
 
 # --- Start variables
-$Users = Import-Csv -Path C:\Users\tulettm_mojsvc\Documents\GoogleUserList.csv
+$Users = Import-Csv -Path \path\to\file.csv
 $companyName = "Service Transformation Group"
 $officeLocation = "Justice Digital|Digital"
 $date = get-date -Format dd-MM-yyyy-HHmm
@@ -41,7 +41,7 @@ foreach ($user in $Users) {
     else {
         if ($adUser.Title -eq $null) {
             Write-Host "Job title is Null, will change to $jobTitle from csv source" -ForegroundColor Cyan
-            #Set-adUser $aduser.name -Title "$jobTitle" -WhatIf
+            Set-adUser $aduser.name -Title "$jobTitle" -WhatIf
         }
         else {
             Write-Host "Job title is populated already, will ignore"
@@ -49,7 +49,7 @@ foreach ($user in $Users) {
     }
 
     Write-Host "Setting Company and Office to $companyName and $officeLocation" -ForegroundColor Cyan
-#    Set-ADUser $adUser.Name -Company $companyName -Office $officeLocation -WhatIf
+    Set-ADUser $adUser.Name -Company $companyName -Office $officeLocation -WhatIf
 }
 
 # --- Collect post changes data
