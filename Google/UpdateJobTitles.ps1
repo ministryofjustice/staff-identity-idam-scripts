@@ -36,7 +36,9 @@ foreach ($user in $Users) {
     $adUser = Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company | select Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company
     Write-Host "Inspecting $upn ..." -ForegroundColor Green
     
-    if ($jobTitle -eq "") {Write-Host "No csv source job title, no action to take on this"}
+    if ($jobTitle -eq "") {
+        Write-Host "No csv source job title, no action to take on this"
+    }
     else {
         if ($adUser.Title -eq $null) {
             Write-Host "Job title is Null, will change to $jobTitle from csv source" -ForegroundColor Cyan
