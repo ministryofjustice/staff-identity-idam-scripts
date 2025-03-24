@@ -25,7 +25,7 @@ $Users = $Users | select -first 8
 # --- Collect pre changes data
 $preResults = foreach ($user in $users) {
     $upn = $user.UserPrincipalName
-    Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,UserPrincipalName,Title,Department,physicalDeliveryOfficeName | select Name,UserPrincipalName,Title,Department,physicalDeliveryOfficeName
+    Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company | select Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company
 }
 $preResults | Export-Csv -path $outputPre -NoTypeInformation
 
@@ -34,14 +34,14 @@ foreach ($user in $Users) {
     $upn = $user.UserPrincipalName
     $jobTitle = $user.CSVJobTitle
 
-    $adUser = Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,UserPrincipalName,Title,Department,physicalDeliveryOfficeName | select Name,UserPrincipalName,Title,Department,physicalDeliveryOfficeName
+    $adUser = Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company | select Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company
     Write-Host "Inspecting $upn ..." -ForegroundColor Green
     
     if ($jobTitle -eq "") {Write-Host "No csv source job title, no action to take on this"}
     else {
         if ($adUser.Title -eq $null) {
             Write-Host "Job title is Null, will change to $jobTitle from csv source" -ForegroundColor Cyan
-            Set-adUser $aduser.name -Title "$jobTitle" -WhatIf
+            Set-adUser $aduser.SamAccountName -Title "$jobTitle"
         }
         else {
             Write-Host "Job title is populated already, will ignore"
@@ -49,12 +49,12 @@ foreach ($user in $Users) {
     }
 
     Write-Host "Setting Company and Office to $companyName and $officeLocation" -ForegroundColor Cyan
-    Set-ADUser $adUser.Name -Company $companyName -Office $officeLocation -WhatIf
+    Set-ADUser $adUser.SamAccountName -Company $companyName -Office $officeLocation
 }
 
 # --- Collect post changes data
 $postResults = foreach ($user in $users) {
     $upn = $user.UserPrincipalName
-    Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,UserPrincipalName,Title,Department,physicalDeliveryOfficeName | select Name,UserPrincipalName,Title,Department,physicalDeliveryOfficeName
+    Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company | select Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company
 }
 $postResults | Export-Csv -path $outputPost -NoTypeInformation
