@@ -12,13 +12,12 @@ $testpath = Test-Path $env:userprofile\scripts\
 
 # --- Start variables
 $Users = Import-Csv -Path \path\to\file.csv
+# Change these next two as required
 $companyName = "Service Transformation Group"
 $officeLocation = "Justice Digital|Digital"
 $date = get-date -Format dd-MM-yyyy-HHmm
 $outputPre = "$env:userprofile\scripts\AdjustUsersPre$date.csv"
 $outputPost = "$env:userprofile\scripts\AdjustUsersPost$date.csv"
-
-$Users = $Users | select -first 8
 
 # --- Start script execution
 
