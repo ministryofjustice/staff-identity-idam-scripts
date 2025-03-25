@@ -93,8 +93,7 @@ $emailBody = @"
 <p>We have received a request to reset your MultiFactor Authentication methods, due to a change in device.</p>
 
 <p>Upon your next login, you will be prompted to reconfigure the Microsoft App for 2FA.</p>
-<p>
-Any issues should be reported to IDAMTeam@justice.gov.uk</p>
+<p>Any issues should be reported to IDAM@justice.gov.uk</p>
 
 <p>Kind Regards</br>
 IdAM Team</p>
