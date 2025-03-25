@@ -20,10 +20,10 @@ if (-not (Get-Module -ListAvailable -Name "Microsoft.Entra" )) {
 
 Write-Host "Import Modules" -ForegroundColor Yellow
 Import-Module -Name "Microsoft.Entra" -Force
-Import-Module "..\PSHelperFunctions"
+Import-Module ".\PSHelperFunctions" -Force
 Write-Host "All Modules Have Been Installed" -ForegroundColor Yellow
 
-# Enter your app reg details here
+# Enter Details for Live App Reg
 $clientId = ""
 $clientSecret = ""
 $tenantId = ""
@@ -87,22 +87,18 @@ $count = 1
 # users until we know each users auth methods have been reset 
 foreach ($user in $users) {
 
-    # Construct Displayname from UPN
-    $nameParts = ($user.UPN -split "@")[0] -split "\."
-    $formattedName = $nameParts | ForEach-Object { $_.Substring(0,1).ToUpper() + $_.Substring(1).ToLower() }
-    $formattedName = $formattedName -join " "
-
 $emailBody = @"
-Hello $formattedName,
+<p>Hello,</p>
 
-We have received a request to reset your MultiFactor Authentication methods, due to a change in device.
+<p>We have received a request to reset your MultiFactor Authentication methods, due to a change in device.</p>
 
-Upon your next login, you will be prompted to reconfigure the Microsoft App for 2FA. 
+<p>Upon your next login, you will be prompted to reconfigure the Microsoft App for 2FA.</p>
+<p>
+Any issues should be reported to IDAMTeam@justice.gov.uk</p>
 
-Any issues should be reported to IDAMTeam@justice.gov.uk
-
-Kind Regards
-IdAM Team
+<p>Kind Regards</br>
+IdAM Team</p>
+<br><img src='cid:signatureImage'>
 "@
 
     $emailDefaultParams = @{
@@ -112,7 +108,7 @@ IdAM Team
         'SendFrom'     = "IdamAutomation@justice.gov.uk"
     }
     Write-Host "Sending email to user $($user.UPN) [$count/$($Users.Count)]" -ForegroundColor Green
-    Send-MGMail @emailDefaultParams -ErrorAction 'Stop'
+    Send-MGMailWithSig @emailDefaultParams -ErrorAction 'Stop'
     $count++
 
     Start-Sleep 15
