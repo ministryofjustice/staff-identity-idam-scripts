@@ -66,7 +66,7 @@ try {
     $users += Import-Csv $Path -ErrorAction Stop
     Write-Host "Users have been imported..." -ForegroundColor Magenta
 } catch {
-    "Failed to import in users. $($_.Exception.Message)"
+    Write-Error "Failed to import in users. $($_.Exception.Message)" -ErrorAction Continue
     exit
 }
 
