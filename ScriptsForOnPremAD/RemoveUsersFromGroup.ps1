@@ -57,6 +57,7 @@ foreach ($user in $userList) {
 }
 
 # Get all users from the group that are in the CSV list
+Write-Host "Getting matching users from list and group..." -ForegroundColor Blue
 $matchingUsers = @()
 foreach ($groupMember in $groupMembers) {
     if ($usersToBeRemovedFromGroup -contains $groupMember.mail) {
