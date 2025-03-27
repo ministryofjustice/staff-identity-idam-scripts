@@ -11,10 +11,7 @@ $testpath = Test-Path $env:userprofile\scripts\
         }
 
 # --- Start variables
-$Users = Import-Csv -Path \path\to\file.csv
-# Change these next two as required
-$COMPANY_NAME = "Service Transformation Group"
-$OFFICE_LOCATION = "Justice Digital|Digital"
+$Users = Import-Csv -Path \path\to\file.csv #this should be the OUTPUT_PRE file from the run you wish to backout
 $DATE = get-date -Format dd-MM-yyyy-HHmm
 $OUTPUT_PRE = "$env:userprofile\scripts\AdjustUsersPre$DATE.csv"
 $OUTPUT_POST = "$env:userprofile\scripts\AdjustUsersPost$DATE.csv"
@@ -31,26 +28,16 @@ $preResults | Export-Csv -path $OUTPUT_PRE -NoTypeInformation
 # --- Make changes
 foreach ($user in $Users) {
     $upn = $user.UserPrincipalName
-    $jobTitle = $user.CSVJobTitle
+    $jobTitle = $user.Title
+    $company_name = $user.Company
+    $office_location = $user.physicalDeliveryOfficeName
 
     $adUser = Get-ADUser -Filter 'UserPrincipalName -eq $upn' -Property Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company | select Name,SamAccountName,UserPrincipalName,Title,Department,physicalDeliveryOfficeName,Company
     Write-Host "Inspecting $upn ..." -ForegroundColor Green
-    
-    if ($jobTitle -eq "") {
-        Write-Host "No csv source job title, no action to take on this"
-    }
-    else {
-        if ($adUser.Title -eq $null) {
-            Write-Host "Job title is Null, will change to $jobTitle from csv source" -ForegroundColor Cyan
-            Set-adUser $aduser.SamAccountName -Title "$jobTitle"
-        }
-        else {
-            Write-Host "Job title is populated already, will ignore"
-        }
-    }
-
-    Write-Host "Setting Company and Office to $COMPANY_NAME and $OFFICE_LOCATION" -ForegroundColor Cyan
-    Set-ADUser $adUser.SamAccountName -Company $COMPANY_NAME -Office $OFFICE_LOCATION
+    Write-Host "Reverting job title, will change to $jobTitle from csv source" -ForegroundColor Cyan
+    Set-adUser $user.SamAccountName -Title "$jobTitle"
+    Write-Host "Setting Company and Office to $company_name and $office_location" -ForegroundColor Cyan
+    Set-ADUser $user.SamAccountName -Company $company_name -Office $office_location
 }
 
 # --- Collect post changes data
