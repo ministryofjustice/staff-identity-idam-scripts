@@ -1,3 +1,11 @@
+<#
+    .SYNOPSIS
+    A script to remove users from a group.
+     
+    .DESCRIPTION
+    This script removes users who are in the TO_BE_DELETED OU from a group that you specify.
+#>
+
 # Module Imports
 if (-not (Get-Module -ListAvailable -Name "ActiveDirectory" )) {
     # Active Directory Module is not installed
@@ -20,11 +28,9 @@ try {
 [String]$groupName = "appl-xdc-g-visor"
 [Array]$usersToBeRemoved = @()
 
-
 # Get properties of all Visor group members
 Write-Host "Getting the members of the Visor group. This will take some time..." -ForegroundColor Yellow
 [Array]$visorGroupMembers = Get-ADGroup $groupName -Properties Member | Select-Object -ExpandProperty Member | Get-ADObject -Properties *
-
 
 function Get-UsersToBeRemoved {
     [CmdletBinding()]
@@ -60,3 +66,31 @@ function Get-UsersToBeRemoved {
 
 Write-Host "Getting Visor Group members in TO_BE_DELETED_OU..." -ForegroundColor Magenta
 $usersToBeRemoved = Get-UsersToBeRemoved -GroupMembers $visorGroupMembers
+
+function Remove-UsersFromGroup {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [String]$GroupName,
+
+        [Parameter(Mandatory=$true)]
+        [Array]$GroupMembers
+    )
+
+    [Int]$count = 0
+
+    foreach ($user in $GroupMembers) {
+        Write-Host "Removing user [$count/$($GroupMembers.Count)]" -ForegroundColor Yellow
+        $count++
+        try {
+            Write-Host "Removing user: $($user.mail) from $GroupName" -ForegroundColor Green
+            Remove-ADGroupMember -Identity $groupName -Members $user.sAMAccountName -whatIf
+        } catch {
+            Write-Error "Could not remove user: $user from group: $GroupName" -ErrorAction Continue
+            throw $_
+        }
+    }
+}
+
+Write-Host "Starting Remove Users From Group Function" -ForegroundColor Yellow
+Remove-UsersFromGroup -GroupName $groupName -GroupMembers $usersToBeRemoved
