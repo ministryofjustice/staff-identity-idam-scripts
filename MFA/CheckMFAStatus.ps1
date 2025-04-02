@@ -3,7 +3,7 @@
     A script to check MFA status for user accounts
      
     .DESCRIPTION
-    Utilises an input file which should contain a list of targeted UPNs, these users will then be queried to idenfity authentication methods.
+    Utilises an input file which should contain a list of targeted UPNs, these users will then be queried to identify authentication methods.
 #>
 
 # User list of UPNs withthe  heading UserPrincipalName
