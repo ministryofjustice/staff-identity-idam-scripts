@@ -40,7 +40,7 @@ function Get-UsersToBeRemoved {
     )
     [Array]$usersToBeRemovedFromVisorGroup = @()
     [Array]$usersExcluded = @()
-    [Int]$count = 0
+    [Int]$count = 1
 
     foreach ($member in $GroupMembers) {
     Write-Host "Checking user [$count/$($GroupMembers.Count)]"
@@ -77,7 +77,7 @@ function Remove-UsersFromGroup {
         [Array]$GroupMembers
     )
 
-    [Int]$count = 0
+    [Int]$count = 1
 
     foreach ($user in $GroupMembers) {
         Write-Host "Removing user [$count/$($GroupMembers.Count)]" -ForegroundColor Yellow
