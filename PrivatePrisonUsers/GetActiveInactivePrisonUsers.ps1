@@ -43,7 +43,7 @@ try {
 $users = @()
 $activeUsers = @()
 $inactiveUsers = @()
-$groupNames = "MoJO-G-Users-AVD-Hostpool01","MoJO-G-Users-AVD-Hostpool02","MoJO-G-Users-AVD-Hostpool03","DELG-MoJO-G-FiveWells-AVD-Access"
+$groupNames = "MoJO-G-Users-AVD-Hostpool01","MoJO-G-Users-AVD-Hostpool02","MoJO-G-Users-AVD-Hostpool03","DELG-MoJO-G-FiveWells-AVD-Access","MoJO-G-Users-AVD-Hostpool04", "MoJO-G-Users-AVD-Hostpool05"
 $groupMembers = @()
 $count = 1
 
