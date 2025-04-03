@@ -5,7 +5,11 @@
     .DESCRIPTION
     This script removes users who are in the TO_BE_DELETED OU from a group that you specify.
 #>
-
+[CmdletBinding()]
+param (
+    [Parameter(Mandatory = $true)]
+    [String]$ExportPath
+)
 # Module Imports
 if (-not (Get-Module -ListAvailable -Name "ActiveDirectory" )) {
     # Active Directory Module is not installed
@@ -67,6 +71,10 @@ function Get-UsersToBeRemoved {
 Write-Host "Getting Visor Group members in TO_BE_DELETED_OU..." -ForegroundColor Magenta
 $usersToBeRemoved = Get-UsersToBeRemoved -GroupMembers $visorGroupMembers
 
+Write-Host "Sending Visor Group Members to be deleted to CSV at $ExportPath" -ForegroundColor Yellow
+$userDetails = $usersToBeRemoved | Select-Object CN, Mail
+$userDetails | Export-Csv -Path $ExportPath -NoTypeInformation
+
 function Remove-UsersFromGroup {
     [CmdletBinding()]
     param (
@@ -84,7 +92,7 @@ function Remove-UsersFromGroup {
         $count++
         try {
             Write-Host "Removing user: $($user.mail) from $GroupName" -ForegroundColor Green
-            Remove-ADGroupMember -Identity $groupName -Members $user.sAMAccountName -whatIf
+            Remove-ADGroupMember -Identity $groupName -Members $user.sAMAccountName
         } catch {
             Write-Error "Could not remove user: $user from group: $GroupName" -ErrorAction Continue
             throw $_
@@ -94,3 +102,4 @@ function Remove-UsersFromGroup {
 
 Write-Host "Starting Remove Users From Group Function" -ForegroundColor Yellow
 Remove-UsersFromGroup -GroupName $groupName -GroupMembers $usersToBeRemoved
+Write-Host "Successfully removed [$($usersToBeRemoved.Count)] from group: $groupName" -ForegroundColor Green
