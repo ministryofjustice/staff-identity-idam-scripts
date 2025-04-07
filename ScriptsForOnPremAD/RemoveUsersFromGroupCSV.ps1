@@ -8,10 +8,10 @@
 [CmdletBinding()]
 param (
     [Parameter(Mandatory = $false)]
-    [String]$ImportPath = "C:\Users\gillettj_mojsvc\Desktop\users.csv",
+    [String]$ImportPath = "",
 
     [Parameter(Mandatory = $false)]
-    [String]$ExportPath = "C:\Users\gillettj_mojsvc\Desktop\VISORCSVEXPORTUSERS.csv"
+    [String]$ExportPath = ""
 )
 
 # Module Imports
